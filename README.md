@@ -177,7 +177,6 @@ The following statements are supported now.
 | SHOW VIEWS | List all views in the current database of the current catalog |
 | SHOW FUNCTIONS | List all functions |
 | SHOW MODULES | List all modules |
-| SHOW CREATE TABLE ... | List create table ddl |
 | USE CATALOG catalog_name | Set a catalog with given name as the current catalog |
 | USE database_name | Set a database with given name as the current database of the current catalog |
 | CREATE TABLE table_name ... | Create a table with a DDL statement |
@@ -196,6 +195,9 @@ The following statements are supported now.
 | SELECT ... | Submit a Flink `SELECT` SQL job |
 | INSERT INTO ... | Submit a Flink `INSERT INTO` SQL job |
 | INSERT OVERWRITE ... | Submit a Flink `INSERT OVERWRITE` SQL job |
+
+# Extra Supported statements
+| SHOW CREATE TABLE ... | List create table ddl |
 | STATEMENT SET | Submit a Flink `statement set` SQL job |
 
 # Run Gateway with Different Executors
