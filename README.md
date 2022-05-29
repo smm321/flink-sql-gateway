@@ -197,6 +197,9 @@ The following statements are supported now.
 | INSERT OVERWRITE ... | Submit a Flink `INSERT OVERWRITE` SQL job |
 
 # Extra Supported statements
+The following statements are extra supported.
+|  statement   | comment  |
+|  ----  | ----  |
 | SHOW CREATE TABLE ... | List create table ddl |
 | STATEMENT SET | Submit a Flink `statement set` SQL job |
 
