@@ -196,7 +196,7 @@ The following statements are supported now.
 | SELECT ... | Submit a Flink `SELECT` SQL job |
 | INSERT INTO ... | Submit a Flink `INSERT INTO` SQL job |
 | INSERT OVERWRITE ... | Submit a Flink `INSERT OVERWRITE` SQL job |
-| STATEMENT SET | submit a Flink `statement set` SQL job |
+| STATEMENT SET | Submit a Flink `statement set` SQL job |
 
 # Run Gateway with Different Executors
 You might want to run the gateway on a standalone Flink cluster or with Yarn / Kubernetes deployment. Flink SQL gateway currently supports the following executors:
