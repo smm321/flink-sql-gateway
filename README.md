@@ -177,6 +177,7 @@ The following statements are supported now.
 | SHOW VIEWS | List all views in the current database of the current catalog |
 | SHOW FUNCTIONS | List all functions |
 | SHOW MODULES | List all modules |
+| SHOW CREATE TABLE ... | List create table ddl |
 | USE CATALOG catalog_name | Set a catalog with given name as the current catalog |
 | USE database_name | Set a database with given name as the current database of the current catalog |
 | CREATE TABLE table_name ... | Create a table with a DDL statement |
@@ -195,6 +196,7 @@ The following statements are supported now.
 | SELECT ... | Submit a Flink `SELECT` SQL job |
 | INSERT INTO ... | Submit a Flink `INSERT INTO` SQL job |
 | INSERT OVERWRITE ... | Submit a Flink `INSERT OVERWRITE` SQL job |
+| STATEMENT SET | submit a Flink `statement set` SQL job |
 
 # Run Gateway with Different Executors
 You might want to run the gateway on a standalone Flink cluster or with Yarn / Kubernetes deployment. Flink SQL gateway currently supports the following executors:
