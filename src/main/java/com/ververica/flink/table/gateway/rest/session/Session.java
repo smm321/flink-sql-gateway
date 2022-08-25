@@ -28,14 +28,12 @@ import com.ververica.flink.table.gateway.operation.SqlCommandParser.SqlCommandCa
 import com.ververica.flink.table.gateway.operation.SqlParseException;
 import com.ververica.flink.table.gateway.rest.result.ResultSet;
 import com.ververica.flink.table.gateway.utils.SqlGatewayException;
-
+import org.apache.calcite.rel.metadata.JaninoRelMetadataProvider;
+import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.planner.plan.metadata.FlinkDefaultRelMetadataProvider;
-
-import org.apache.calcite.rel.metadata.JaninoRelMetadataProvider;
-import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,97 +46,108 @@ import java.util.concurrent.ConcurrentHashMap;
  * during multiple request/response interactions between a client and the gateway server.
  */
 public class Session {
-	private static final Logger LOG = LoggerFactory.getLogger(Session.class);
+    private static final Logger LOG = LoggerFactory.getLogger(Session.class);
 
-	private final SessionContext context;
-	private final String sessionId;
+    private final SessionContext context;
+    private final String sessionId;
 
-	private long lastVisitedTime;
+    private long lastVisitedTime;
 
-	private final Map<JobID, JobOperation> jobOperations;
+    private final Map<JobID, JobOperation> jobOperations;
 
-	public Session(SessionContext context) {
-		this.context = context;
-		this.sessionId = context.getSessionId();
+    public Session(SessionContext context) {
+        this.context = context;
+        this.sessionId = context.getSessionId();
 
-		this.lastVisitedTime = System.currentTimeMillis();
+        this.lastVisitedTime = System.currentTimeMillis();
 
-		this.jobOperations = new ConcurrentHashMap<>();
-	}
+        this.jobOperations = new ConcurrentHashMap<>();
+    }
 
-	public void touch() {
-		lastVisitedTime = System.currentTimeMillis();
-	}
+    public void touch() {
+        lastVisitedTime = System.currentTimeMillis();
+    }
 
-	public long getLastVisitedTime() {
-		return lastVisitedTime;
-	}
+    public long getLastVisitedTime() {
+        return lastVisitedTime;
+    }
 
-	public SessionContext getContext() {
-		return context;
-	}
+    public SessionContext getContext() {
+        return context;
+    }
 
-	public Tuple2<ResultSet, SqlCommandParser.SqlCommand> runStatement(String statement) {
-		// TODO: This is a temporary fix to avoid NPE.
-		//  In SQL gateway, TableEnvironment is created and used by different threads, thus causing this problem.
-		RelMetadataQuery.THREAD_PROVIDERS
-			.set(JaninoRelMetadataProvider.of(FlinkDefaultRelMetadataProvider.INSTANCE()));
+    public Tuple2<ResultSet, SqlCommandParser.SqlCommand> runStatement(String statement, String param) {
+        // TODO: This is a temporary fix to avoid NPE.
+        //  In SQL gateway, TableEnvironment is created and used by different threads, thus causing this problem.
+        RelMetadataQuery.THREAD_PROVIDERS
+                .set(JaninoRelMetadataProvider.of(FlinkDefaultRelMetadataProvider.INSTANCE()));
 
-		LOG.info("Session: {}, run statement: {}", sessionId, statement);
-		boolean isBlinkPlanner = context.getExecutionContext().getEnvironment().getExecution().getPlanner()
-			.equalsIgnoreCase(ExecutionEntry.EXECUTION_PLANNER_VALUE_BLINK);
+        LOG.info("Session: {}, run statement: {}", sessionId, statement);
+        boolean isBlinkPlanner = context.getExecutionContext()
+                .getEnvironment()
+                .getExecution()
+                .getPlanner()
+                .equalsIgnoreCase(ExecutionEntry.EXECUTION_PLANNER_VALUE_BLINK);
 
-		SqlCommandCall call;
-		try {
-			Optional<SqlCommandCall> callOpt = SqlCommandParser.parse(statement, isBlinkPlanner);
-			if (!callOpt.isPresent()) {
-				LOG.error("Session: {}, Unknown statement: {}", sessionId, statement);
-				throw new SqlGatewayException("Unknown statement: " + statement);
-			} else {
-				call = callOpt.get();
-			}
-		} catch (SqlParseException e) {
-			LOG.error("Session: {}, Failed to parse statement: {}", sessionId, statement);
-			throw new SqlGatewayException(e.getMessage(), e.getCause());
-		}
+        SqlCommandCall call;
+        try {
+            Optional<SqlCommandCall> callOpt = SqlCommandParser.parse(statement, isBlinkPlanner);
+            if (!callOpt.isPresent()) {
+                LOG.error("Session: {}, Unknown statement: {}", sessionId, statement);
+                throw new SqlGatewayException("Unknown statement: " + statement);
+            } else {
+                call = callOpt.get();
+            }
+        } catch (SqlParseException e) {
+            LOG.error("Session: {}, Failed to parse statement: {}", sessionId, statement);
+            throw new SqlGatewayException(e.getMessage(), e.getCause());
+        }
 
-		Operation operation = OperationFactory.createOperation(call, context);
-		ResultSet resultSet = operation.execute();
+        //add param
+        String[] operandsWithParam = new String[call.operands.length + 1];
+        for (int i = 0; i < call.operands.length; i++) {
+            operandsWithParam[i] = call.operands[i];
+        }
+        operandsWithParam[operandsWithParam.length - 1] = param;
 
-		if (operation instanceof JobOperation) {
-			JobOperation jobOperation = (JobOperation) operation;
-			jobOperations.put(jobOperation.getJobId(), jobOperation);
-		}
+        SqlCommandCall callWithParam = new SqlCommandCall(call.command, operandsWithParam);
+        Operation operation = OperationFactory.createOperation(callWithParam, context);
+        ResultSet resultSet = operation.execute();
 
-		return Tuple2.of(resultSet, call.command);
-	}
+        if (operation instanceof JobOperation) {
+            JobOperation jobOperation = (JobOperation) operation;
+            jobOperations.put(jobOperation.getJobId(), jobOperation);
+        }
 
-	public JobStatus getJobStatus(JobID jobId) {
-		LOG.info("Session: {}, get status for job: {}", sessionId, jobId);
-		return getJobOperation(jobId).getJobStatus();
-	}
+        return Tuple2.of(resultSet, callWithParam.command);
+    }
 
-	public void cancelJob(JobID jobId) {
-		LOG.info("Session: {}, cancel job: {}", sessionId, jobId);
-		getJobOperation(jobId).cancelJob();
-		jobOperations.remove(jobId);
-	}
+    public JobStatus getJobStatus(JobID jobId) {
+        LOG.info("Session: {}, get status for job: {}", sessionId, jobId);
+        return getJobOperation(jobId).getJobStatus();
+    }
 
-	public Optional<ResultSet> getJobResult(JobID jobId, long token, int maxFetchSize) {
-		LOG.info("Session: {}, get result for job: {}, token: {}, maxFetchSize: {}",
-			sessionId, jobId, token, maxFetchSize);
-		return getJobOperation(jobId).getJobResult(token, maxFetchSize);
-	}
+    public void cancelJob(JobID jobId) {
+        LOG.info("Session: {}, cancel job: {}", sessionId, jobId);
+        getJobOperation(jobId).cancelJob();
+        jobOperations.remove(jobId);
+    }
 
-	private JobOperation getJobOperation(JobID jobId) {
-		JobOperation jobOperation = jobOperations.get(jobId);
-		if (jobOperation == null) {
-			String msg = String.format("Job: %s does not exist in current session: %s.", jobId, sessionId);
-			LOG.error(msg);
-			throw new SqlGatewayException(msg);
-		} else {
-			return jobOperation;
-		}
-	}
+    public Optional<ResultSet> getJobResult(JobID jobId, long token, int maxFetchSize) {
+        LOG.info("Session: {}, get result for job: {}, token: {}, maxFetchSize: {}",
+                sessionId, jobId, token, maxFetchSize);
+        return getJobOperation(jobId).getJobResult(token, maxFetchSize);
+    }
+
+    private JobOperation getJobOperation(JobID jobId) {
+        JobOperation jobOperation = jobOperations.get(jobId);
+        if (jobOperation == null) {
+            String msg = String.format("Job: %s does not exist in current session: %s.", jobId, sessionId);
+            LOG.error(msg);
+            throw new SqlGatewayException(msg);
+        } else {
+            return jobOperation;
+        }
+    }
 
 }

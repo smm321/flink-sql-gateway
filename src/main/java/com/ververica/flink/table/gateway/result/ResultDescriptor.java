@@ -26,35 +26,35 @@ import org.apache.flink.table.api.TableSchema;
  */
 public class ResultDescriptor {
 
-	private final Result<?, ?> result;
+    private final Result<?, ?> result;
 
-	private boolean isChangelogResult;
+    private boolean isChangelogResult;
 
-	private final TableSchema resultSchema;
+    private final TableSchema resultSchema;
 
-	private final JobClient jobClient;
+    private final JobClient jobClient;
 
-	public ResultDescriptor(Result<?, ?> result, boolean isChangelogResult, TableSchema resultSchema, JobClient jobClient) {
-		this.result = result;
-		this.isChangelogResult = isChangelogResult;
-		this.resultSchema = resultSchema;
-		this.jobClient = jobClient;
-	}
+    public ResultDescriptor(Result<?, ?> result, boolean isChangelogResult, TableSchema resultSchema, JobClient jobClient) {
+        this.result = result;
+        this.isChangelogResult = isChangelogResult;
+        this.resultSchema = resultSchema;
+        this.jobClient = jobClient;
+    }
 
-	public Result<?, ?> getResult() {
-		return result;
-	}
+    public Result<?, ?> getResult() {
+        return result;
+    }
 
-	public boolean isChangelogResult() {
-		return isChangelogResult;
-	}
+    public boolean isChangelogResult() {
+        return isChangelogResult;
+    }
 
-	public TableSchema getResultSchema() {
-		return resultSchema;
-	}
+    public TableSchema getResultSchema() {
+        return resultSchema;
+    }
 
-	public JobClient getJobClient() {
-		return jobClient;
-	}
+    public JobClient getJobClient() {
+        return jobClient;
+    }
 
 }

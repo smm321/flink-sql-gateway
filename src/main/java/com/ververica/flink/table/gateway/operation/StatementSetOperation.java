@@ -18,6 +18,7 @@
 
 package com.ververica.flink.table.gateway.operation;
 
+import com.ververica.flink.table.gateway.context.CustomSqlParser;
 import com.ververica.flink.table.gateway.context.ExecutionContext;
 import com.ververica.flink.table.gateway.context.SessionContext;
 import com.ververica.flink.table.gateway.deployment.ClusterDescriptorAdapterFactory;
@@ -26,7 +27,10 @@ import com.ververica.flink.table.gateway.rest.result.ColumnInfo;
 import com.ververica.flink.table.gateway.rest.result.ConstantNames;
 import com.ververica.flink.table.gateway.rest.result.ResultKind;
 import com.ververica.flink.table.gateway.rest.result.ResultSet;
+import com.ververica.flink.table.gateway.utils.FlinkUtil;
 import com.ververica.flink.table.gateway.utils.SqlExecutionException;
+import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlNodeList;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.api.dag.Transformation;
@@ -34,6 +38,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.sql.parser.dml.RichSqlInsert;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.bridge.java.internal.StreamTableEnvironmentImpl;
 import org.apache.flink.table.operations.ModifyOperation;
@@ -46,6 +51,7 @@ import org.slf4j.LoggerFactory;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 import java.util.regex.Pattern;
@@ -64,14 +70,17 @@ public class StatementSetOperation extends AbstractJobOperation {
 	//private final List<ColumnInfo> columnInfos;
 	private final List<Transformation<?>> transformations = new ArrayList();
 
+	private final String hints;
+
 	private boolean fetched = false;
 
-	public StatementSetOperation(SessionContext context, String statement) {
+	public StatementSetOperation(SessionContext context, String statement, String param) {
 		super(context);
 		this.statement = statement;
 		//todo what to set here from multiple insert statement?
 //		this.columnInfos = Collections.singletonList(
 //			ColumnInfo.create(tableIdentifier, new BigIntType(false)));
+		this.hints = param;
 	}
 
 	@Override
@@ -128,23 +137,48 @@ public class StatementSetOperation extends AbstractJobOperation {
 		try {
 			executionContext.wrapClassLoader(() -> {
 				List<ModifyOperation> list = new ArrayList();
-				for(String s : statement.split(";")){
+				List<String> sqls = new ArrayList();
+				try {
+					CustomSqlParser sqlParser = new CustomSqlParser();
+					sqls = sqlParser.formatSql(statement);
+					for (int i = 0; i < sqls.size(); i++){
+						String s = sqls.get(i);
+						RichSqlInsert richSqlInsert = (RichSqlInsert) sqlParser.getParser(s).parseStmt();
+						SqlNode sqlSelect = richSqlInsert.getSource();
+						sqlSelect = FlinkUtil.injectHints(sqlSelect, FlinkUtil.getHintsFromString(hints, sqls.size()).get(i));
+						RichSqlInsert newRichInsert = new RichSqlInsert(richSqlInsert.getParserPosition(),
+								(SqlNodeList)richSqlInsert.getOperandList().get(0),
+								(SqlNodeList)richSqlInsert.getOperandList().get(0),
+								richSqlInsert.getTargetTable(),
+								sqlSelect,
+								richSqlInsert.getTargetColumnList(),
+								richSqlInsert.getStaticPartitions());
+						sqls.set(i, newRichInsert.toString());
+					}
+				} catch (Exception e){
+					e.printStackTrace();
+					LOG.error("Invalid SQL update statement.", e);
+					throw new TableException("Invalid SQL update statement.", e);
+				}
+				for (String s : sqls){
 					List<Operation> operations = streamTableEnvironmentImpl.getParser().parse(s);
-
-					if(operations.size() != 1){
+					if (operations.size() != 1){
 						throw new TableException("Only single statement is supported.");
 					}
 					Operation operation = operations.get(0);
-					if(operation instanceof ModifyOperation){
-						list.add((ModifyOperation) operation);
-					}else{
+					if (operation instanceof ModifyOperation){
+						list.add((ModifyOperation)operation);
+					} else {
 						throw new TableException("Only insert statement is supported.");
 					}
 				}
-				this.transformations.addAll(streamTableEnvironmentImpl.getPlanner().translate(list));
+				List<Transformation<?>> transformations = streamTableEnvironmentImpl.getPlanner().translate(list);
+				FlinkUtil.setTransformationUid(transformations, new HashMap<>());
+				this.transformations.addAll(transformations);
 				return null;
 			});
 		} catch (Throwable t) {
+			t.printStackTrace();
 			LOG.error(String.format("Session: %s. Invalid SQL query.", sessionId), t);
 			// catch everything such that the statement does not crash the executor
 			throw new SqlExecutionException("Invalid SQL update statement.", t);

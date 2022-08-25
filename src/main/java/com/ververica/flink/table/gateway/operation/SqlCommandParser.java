@@ -18,19 +18,33 @@
 
 package com.ververica.flink.table.gateway.operation;
 
-import org.apache.calcite.sql.*;
+import org.apache.calcite.sql.SqlDrop;
+import org.apache.calcite.sql.SqlExplain;
+import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlNodeList;
+import org.apache.calcite.sql.SqlSetOption;
+import org.apache.calcite.sql.SqlKind;
+
 import org.apache.flink.sql.parser.ddl.SqlAlterDatabase;
+import org.apache.flink.sql.parser.ddl.SqlAlterFunction;
 import org.apache.flink.sql.parser.ddl.SqlAlterTable;
 import org.apache.flink.sql.parser.ddl.SqlCreateDatabase;
+import org.apache.flink.sql.parser.ddl.SqlCreateFunction;
 import org.apache.flink.sql.parser.ddl.SqlCreateTable;
 import org.apache.flink.sql.parser.ddl.SqlCreateView;
 import org.apache.flink.sql.parser.ddl.SqlDropDatabase;
+import org.apache.flink.sql.parser.ddl.SqlDropFunction;
 import org.apache.flink.sql.parser.ddl.SqlDropTable;
 import org.apache.flink.sql.parser.ddl.SqlDropView;
 import org.apache.flink.sql.parser.ddl.SqlUseCatalog;
 import org.apache.flink.sql.parser.ddl.SqlUseDatabase;
 import org.apache.flink.sql.parser.dml.RichSqlInsert;
-import org.apache.flink.sql.parser.dql.*;
+import org.apache.flink.sql.parser.dql.SqlRichDescribeTable;
+import org.apache.flink.sql.parser.dql.SqlRichExplain;
+import org.apache.flink.sql.parser.dql.SqlShowCatalogs;
+import org.apache.flink.sql.parser.dql.SqlShowDatabases;
+import org.apache.flink.sql.parser.dql.SqlShowFunctions;
+import org.apache.flink.sql.parser.dql.SqlShowTables;
 import org.apache.flink.sql.parser.impl.FlinkSqlParserImpl;
 import org.apache.flink.sql.parser.validate.FlinkSqlConformance;
 
@@ -38,7 +52,9 @@ import org.apache.calcite.config.Lex;
 import org.apache.calcite.sql.parser.SqlParser;
 
 import java.lang.reflect.Field;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -83,12 +99,22 @@ public final class SqlCommandParser {
 					for (int i = 0; i < groups.length; i++) {
 						groups[i] = matcher.group(i + 1);
 					}
-					//hardcode here
-					if(cmd.name().equalsIgnoreCase("show_create_table")){
+
+					if (cmd.name().equalsIgnoreCase("show_create_table")){
 						return cmd.operandConverter.apply(groups)
 								.map((operands) -> new SqlCommandCall(cmd, groups));
 					}
-					//this is a bug?
+
+					if (cmd.name().equalsIgnoreCase("validate")){
+						return cmd.operandConverter.apply(groups)
+								.map((operands) -> new SqlCommandCall(cmd, groups));
+					}
+
+					if (cmd.name().equalsIgnoreCase("lineage")){
+						return cmd.operandConverter.apply(groups)
+								.map((operands) -> new SqlCommandCall(cmd, groups));
+					}
+
 					return cmd.operandConverter.apply(groups)
 						.map((operands) -> new SqlCommandCall(cmd, operands));
 				}
@@ -119,16 +145,25 @@ public final class SqlCommandParser {
 		final String[] operands;
 		final SqlCommand cmd;
 		SqlNode node = sqlNodes.get(0);
-		if (node.getKind().belongsTo(SqlKind.QUERY)) {
+		if (node instanceof SqlCreateFunction){
+			cmd = SqlCommand.CREATE_FUNCTION;
+			operands = new String[]{stmt};
+		} else if (node instanceof SqlAlterFunction){
+			cmd = SqlCommand.ALTER_FUNCTION;
+			operands = new String[]{stmt};
+		} else if (node instanceof SqlDropFunction){
+			cmd = SqlCommand.DROP_FUNCTION;
+			operands = new String[]{stmt};
+		} else if (node.getKind().belongsTo(SqlKind.QUERY)) {
 			cmd = SqlCommand.SELECT;
 			operands = new String[] { stmt };
 		} else if (sqlNodes.size() == 1 && node instanceof RichSqlInsert) {
 			RichSqlInsert insertNode = (RichSqlInsert) node;
 			cmd = insertNode.isOverwrite() ? SqlCommand.INSERT_OVERWRITE : SqlCommand.INSERT_INTO;
 			operands = new String[] { stmt, insertNode.getTargetTable().toString()};
-		} else if(sqlNodes.size() > 1){
+		} else if (sqlNodes.size() > 1){
 			//support multiple insert operations here
-			if(sqlNodes.getList().stream().filter(o -> !(o instanceof RichSqlInsert)).count() > 0){
+			if (sqlNodes.getList().stream().filter(o -> !(o instanceof RichSqlInsert)).count() > 0){
 				throw new SqlParseException("Only insert statement is supported now");
 			}
 			cmd = SqlCommand.STATEMENT_SET;
@@ -296,6 +331,12 @@ public final class SqlCommandParser {
 
 		CREATE_DATABASE,
 
+		CREATE_FUNCTION,
+
+		ALTER_FUNCTION,
+
+		DROP_FUNCTION,
+
 		ALTER_DATABASE,
 
 		DROP_DATABASE,
@@ -320,6 +361,16 @@ public final class SqlCommandParser {
 				"SHOW\\s+CREATE\\s+TABLE(.*)",
 				NO_OPERANDS
 				),
+
+		VALIDATE(
+				"VALIDATE\\s(.*)",
+				NO_OPERANDS
+		),
+
+		LINEAGE(
+				"LINEAGE\\s(.*)",
+				NO_OPERANDS
+		),
 
 		RESET,
 

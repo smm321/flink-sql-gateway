@@ -92,7 +92,7 @@ public class DescribeTableOperation implements NonJobOperation {
 			String key = fieldToPrimaryKey.getOrDefault(column.getName(), null);
 			String computedColumn = null;
 
-			if(column instanceof TableColumn.ComputedColumn){
+			if (column instanceof TableColumn.ComputedColumn){
 				TableColumn.ComputedColumn col = (TableColumn.ComputedColumn)column;
 				computedColumn = col.getExpression();
 			}

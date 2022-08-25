@@ -3,6 +3,9 @@ package com.ververica.flink.table.gateway.sink;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 
+/**
+ * Table sink for dynamic tables.
+ */
 public class CollectDynamicStreamTableSink implements DynamicTableSink {
 
     @Override

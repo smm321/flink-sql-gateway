@@ -25,12 +25,12 @@ import org.apache.flink.table.descriptors.DescriptorProperties;
  */
 public class SinkTableEntry extends TableEntry {
 
-	SinkTableEntry(String name, DescriptorProperties properties) {
-		super(name, properties);
-	}
+    SinkTableEntry(String name, DescriptorProperties properties) {
+        super(name, properties);
+    }
 
-	@Override
-	protected void validate(DescriptorProperties properties) {
-		// validation is performed by the discovered factory
-	}
+    @Override
+    protected void validate(DescriptorProperties properties) {
+        // validation is performed by the discovered factory
+    }
 }

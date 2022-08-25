@@ -10,14 +10,22 @@ import com.ververica.flink.table.gateway.utils.SqlExecutionException;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.table.api.TableEnvironment;
-import org.apache.flink.table.catalog.*;
-import org.apache.flink.table.catalog.exceptions.TableNotExistException;
+import org.apache.flink.table.catalog.Catalog;
+import org.apache.flink.table.catalog.CatalogBaseTable;
+import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.catalog.WatermarkSpec;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.utils.EncodingUtils;
 import org.apache.flink.types.Row;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.SortedSet;
+import java.util.TreeSet;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -42,7 +50,7 @@ public class ShowCreateTableOperation implements NonJobOperation{
         Catalog catalog = tableEnv.getCatalog(tableEnv.getCurrentCatalog())
                 .orElseThrow(
                         //impossible to be here
-                        () -> new SqlExecutionException("No catalog with this name : " + tableEnv.getCurrentCatalog() +" could be found.")
+                        () -> new SqlExecutionException("No catalog with this name : " + tableEnv.getCurrentCatalog() + " could be found.")
                 );
         try {
             ResolvedSchema schema = context.wrapClassLoader(() -> tableEnv.from(tableName).getResolvedSchema());
@@ -87,11 +95,11 @@ public class ShowCreateTableOperation implements NonJobOperation{
             // Step.5 get partition column
             //--------------------------------------------------------------------------------------------------------------
             List<String> partitionList = new ArrayList<>();
-            if(catalog instanceof HiveCatalog){
+            if (catalog instanceof HiveCatalog){
                 HiveCatalog hiveCatalog = (HiveCatalog)catalog;
                 hiveCatalog.getHiveTable(new ObjectPath(tableEnv.getCurrentDatabase(), tableName)).getParameters()
-                        .forEach((k, v) ->{
-                            if(k.startsWith("flink.partition.keys")){
+                        .forEach((k, v) -> {
+                            if (k.startsWith("flink.partition.keys")){
                                 partitionList.add(v);
                             }
                         });
@@ -107,11 +115,9 @@ public class ShowCreateTableOperation implements NonJobOperation{
                     .data(Row.of(generateCreateTableDDL(fieldInfo, watermark, primaryKey.toString(), comment,
                             partitionList, withMap, tableName)))
                     .build();
-        } catch (TableNotExistException e) {
-            throw new SqlExecutionException("No table with this name : "+ tableName +" could be found.");
-        }catch (Exception e){
+        } catch (Exception e){
             e.printStackTrace();
-            throw new SqlExecutionException("show create table : "+ tableName +" failed");
+            throw new SqlExecutionException(String.format("show create table : %s failed, Caused by %s", tableName, e.getMessage()));
         }
     }
 
@@ -121,26 +127,26 @@ public class ShowCreateTableOperation implements NonJobOperation{
                 .append(EncodingUtils.escapeIdentifier(tableName.trim()))
                 .append("(");
         fieldInfo.forEach((v) -> {
-            if(v instanceof Column.PhysicalColumn){
+            if (v instanceof Column.PhysicalColumn){
                 Column.PhysicalColumn col = (Column.PhysicalColumn)v;
                 String colType = col.getDataType().getLogicalType().toString();
-                if(watermark.containsKey(v.getName())){
+                if (watermark.containsKey(v.getName())){
                     colType = StringUtils.removeEnd(colType, " *ROWTIME*");
-                }else{
+                } else {
                     colType = StringUtils.removeEnd(colType, " NOT NULL");
                 }
                 stringBuffer.append(EncodingUtils.escapeIdentifier(v.getName())).append(" ").append(colType).append(", ");
             }
-            else if(v instanceof Column.ComputedColumn){
+            else if (v instanceof Column.ComputedColumn){
                 //we can't use ComputedColumn.toString() here
                 Column.ComputedColumn col = (Column.ComputedColumn)v;
                 String exp = "AS " + col.getExpression();
                 stringBuffer.append(EncodingUtils.escapeIdentifier(v.getName())).append(" ").append(exp).append(", ");
-            }else if(v instanceof Column.MetadataColumn){
+            } else if (v instanceof Column.MetadataColumn){
                 //we can't use Column.MetadataColumn.toString() here
                 Column.MetadataColumn col = (Column.MetadataColumn)v;
                 String type = col.getDataType().getLogicalType().toString();
-                if(watermark.containsKey(v.getName())){
+                if (watermark.containsKey(v.getName())){
                     type = StringUtils.removeEnd(type, " *ROWTIME*");
                 }
                 stringBuffer.append(EncodingUtils.escapeIdentifier(v.getName())).append(" ").append(type);
@@ -152,7 +158,7 @@ public class ShowCreateTableOperation implements NonJobOperation{
                 stringBuffer.append(", ");
             }
         });
-        if(StringUtils.isNotEmpty(primaryKey)){
+        if (StringUtils.isNotEmpty(primaryKey)){
             stringBuffer.append(primaryKey).append(", ");
         }
         watermark.forEach((k, v) -> {
@@ -161,21 +167,21 @@ public class ShowCreateTableOperation implements NonJobOperation{
                     + " AS " + v.getWatermarkExpression().asSummaryString();
             stringBuffer.append(str).append(", ");
         });
-        stringBuffer.deleteCharAt(stringBuffer.length()-2).deleteCharAt(stringBuffer.length()-1).append(")");
-        if(StringUtils.isNotEmpty(comment)){
-            stringBuffer.append(" COMMENT ").append(comment);
+        stringBuffer.deleteCharAt(stringBuffer.length() - 2).deleteCharAt(stringBuffer.length() - 1).append(")");
+        if (StringUtils.isNotEmpty(comment)){
+            stringBuffer.append(" COMMENT '").append(comment).append("'");
         }
-        if(CollectionUtils.isNotEmpty(partitionList)){
+        if (CollectionUtils.isNotEmpty(partitionList)){
             stringBuffer.append(" PARTITIONED BY (").append(String.join(", ", partitionList)).append(")");
         }
-        if(!with.isEmpty()){
+        if (!with.isEmpty()){
             stringBuffer.append(" WITH(");
             SortedSet<String> keys = new TreeSet<>(with.keySet());
             for (String key : keys) {
                 String value = with.get(key);
                 stringBuffer.append("'").append(key).append("'='").append(value).append("', ");
             }
-            stringBuffer.deleteCharAt(stringBuffer.length()-2).deleteCharAt(stringBuffer.length()-1).append(")");
+            stringBuffer.deleteCharAt(stringBuffer.length() - 2).deleteCharAt(stringBuffer.length() - 1).append(")");
         }
         return stringBuffer.toString();
     }

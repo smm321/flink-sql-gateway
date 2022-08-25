@@ -23,69 +23,77 @@ import com.ververica.flink.table.gateway.context.SessionContext;
 import com.ververica.flink.table.gateway.operation.SqlCommandParser.SqlCommand;
 import com.ververica.flink.table.gateway.rest.result.ResultSet;
 import com.ververica.flink.table.gateway.utils.SqlExecutionException;
-
 import org.apache.flink.table.api.TableEnvironment;
 
 /**
  * Operation for CREATE/DROP/ALTER TABLE/DATABASE command.
  */
 public class DDLOperation implements NonJobOperation {
-	private final ExecutionContext<?> context;
-	private final String ddl;
-	private final SqlCommand command;
+    private final ExecutionContext<?> context;
+    private final String ddl;
+    private final SqlCommand command;
 
-	public DDLOperation(SessionContext context, String ddl, SqlCommand command) {
-		this.context = context.getExecutionContext();
-		this.ddl = ddl;
-		this.command = command;
-	}
+    public DDLOperation(SessionContext context, String ddl, SqlCommand command) {
+        this.context = context.getExecutionContext();
+        this.ddl = ddl;
+        this.command = command;
+    }
 
-	@Override
-	public ResultSet execute() {
-		final TableEnvironment tEnv = context.getTableEnvironment();
-		// parse and validate statement
-		try {
-			context.wrapClassLoader(() -> {
-				tEnv.executeSql(ddl);
-				return null;
-			});
-		} catch (Throwable t) {
-			// catch everything such that the statement does not crash the executor
-			throw new SqlExecutionException(getExceptionMsg(), t);
-		}
+    @Override
+    public ResultSet execute() {
+        final TableEnvironment tEnv = context.getTableEnvironment();
+        // parse and validate statement
+        try {
+            context.wrapClassLoader(() -> {
+                tEnv.executeSql(ddl);
+                return null;
+            });
+        } catch (Throwable t) {
+            // catch everything such that the statement does not crash the executor
+            throw new SqlExecutionException(getExceptionMsg(), t);
+        }
 
-		return OperationUtil.OK;
-	}
+        return OperationUtil.OK;
+    }
 
-	private String getExceptionMsg() {
-		final String actionMsg;
-		switch (command) {
-			case CREATE_TABLE:
-				actionMsg = "create a table";
-				break;
-			case CREATE_DATABASE:
-				actionMsg = "create a database";
-				break;
-			case DROP_TABLE:
-				actionMsg = "drop a table";
-				break;
-			case DROP_DATABASE:
-				actionMsg = "drop a database";
-				break;
-			case ALTER_TABLE:
-				actionMsg = "alter a table";
-				break;
-			case ALTER_DATABASE:
-				actionMsg = "alter a database";
-				break;
-			default:
-				actionMsg = null;
-		}
+    private String getExceptionMsg() {
+        final String actionMsg;
+        switch (command) {
+            case CREATE_TABLE:
+                actionMsg = "create a table";
+                break;
+            case CREATE_DATABASE:
+                actionMsg = "create a database";
+                break;
+            case DROP_TABLE:
+                actionMsg = "drop a table";
+                break;
+            case DROP_DATABASE:
+                actionMsg = "drop a database";
+                break;
+            case ALTER_TABLE:
+                actionMsg = "alter a table";
+                break;
+            case ALTER_DATABASE:
+                actionMsg = "alter a database";
+                break;
+            case CREATE_FUNCTION:
+                actionMsg = "create a function";
+                break;
+            case DROP_FUNCTION:
+                actionMsg = "drop a function";
+                break;
+            case ALTER_FUNCTION:
+                actionMsg = "alter a function";
+                break;
+            default:
+                actionMsg = null;
+        }
 
-		if (actionMsg != null) {
-			return String.format("Could not %s from statement: %s.", actionMsg, ddl);
-		} else {
-			return "Invalid DDL statement.";
-		}
-	}
+        if (actionMsg != null) {
+            return String.format("Could not %s from statement: %s.", actionMsg, ddl);
+        } else {
+            return "Invalid DDL statement.";
+        }
+    }
 }

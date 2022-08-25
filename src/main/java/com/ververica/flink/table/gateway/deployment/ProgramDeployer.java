@@ -80,6 +80,7 @@ public class ProgramDeployer {
 		try {
 			return executor.execute(pipeline, configuration, this.getClass().getClassLoader());
 		} catch (Exception e) {
+			e.printStackTrace();
 			throw new RuntimeException("Could not execute program.", e);
 		}
 	}

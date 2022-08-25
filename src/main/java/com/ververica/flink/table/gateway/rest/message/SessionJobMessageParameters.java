@@ -32,27 +32,27 @@ import java.util.Collections;
  */
 public class SessionJobMessageParameters extends MessageParameters {
 
-	private final SessionIdPathParameter sessionIdPathParameter = new SessionIdPathParameter();
-	private final JobIdPathParameter jobIdPathParameter = new JobIdPathParameter();
+    private final SessionIdPathParameter sessionIdPathParameter = new SessionIdPathParameter();
+    private final JobIdPathParameter jobIdPathParameter = new JobIdPathParameter();
 
-	public SessionJobMessageParameters() {
-		// nothing to resolve
-	}
+    public SessionJobMessageParameters() {
+        // nothing to resolve
+    }
 
-	public SessionJobMessageParameters(String sessionId, JobID jobId) {
-		sessionIdPathParameter.resolve(sessionId);
-		jobIdPathParameter.resolve(jobId);
-	}
+    public SessionJobMessageParameters(String sessionId, JobID jobId) {
+        sessionIdPathParameter.resolve(sessionId);
+        jobIdPathParameter.resolve(jobId);
+    }
 
-	@Override
-	public Collection<MessagePathParameter<?>> getPathParameters() {
-		return Arrays.asList(
-			sessionIdPathParameter,
-			jobIdPathParameter);
-	}
+    @Override
+    public Collection<MessagePathParameter<?>> getPathParameters() {
+        return Arrays.asList(
+                sessionIdPathParameter,
+                jobIdPathParameter);
+    }
 
-	@Override
-	public Collection<MessageQueryParameter<?>> getQueryParameters() {
-		return Collections.emptyList();
-	}
+    @Override
+    public Collection<MessageQueryParameter<?>> getQueryParameters() {
+        return Collections.emptyList();
+    }
 }

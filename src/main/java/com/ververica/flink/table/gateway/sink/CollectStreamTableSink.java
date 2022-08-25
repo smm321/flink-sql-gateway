@@ -37,46 +37,46 @@ import java.net.InetAddress;
  */
 public class CollectStreamTableSink implements RetractStreamTableSink<Row> {
 
-	private final InetAddress targetAddress;
-	private final int targetPort;
-	private final TypeSerializer<Tuple2<Boolean, Row>> serializer;
-	private final TableSchema tableSchema;
+    private final InetAddress targetAddress;
+    private final int targetPort;
+    private final TypeSerializer<Tuple2<Boolean, Row>> serializer;
+    private final TableSchema tableSchema;
 
-	public CollectStreamTableSink(InetAddress targetAddress, int targetPort,
-		TypeSerializer<Tuple2<Boolean, Row>> serializer, TableSchema tableSchema) {
-		this.targetAddress = targetAddress;
-		this.targetPort = targetPort;
-		this.serializer = serializer;
-		//this.tableSchema = TableSchemaUtils.checkNoGeneratedColumns(tableSchema);
-		this.tableSchema = tableSchema;
-	}
+    public CollectStreamTableSink(InetAddress targetAddress, int targetPort,
+                                  TypeSerializer<Tuple2<Boolean, Row>> serializer, TableSchema tableSchema) {
+        this.targetAddress = targetAddress;
+        this.targetPort = targetPort;
+        this.serializer = serializer;
+        //this.tableSchema = TableSchemaUtils.checkNoGeneratedColumns(tableSchema);
+        this.tableSchema = tableSchema;
+    }
 
-	@Override
-	public TableSchema getTableSchema() {
-		return tableSchema;
-	}
+    @Override
+    public TableSchema getTableSchema() {
+        return tableSchema;
+    }
 
-	@Override
-	public CollectStreamTableSink configure(String[] fieldNames, TypeInformation<?>[] fieldTypes) {
-		return new CollectStreamTableSink(targetAddress, targetPort, serializer, tableSchema);
-	}
+    @Override
+    public CollectStreamTableSink configure(String[] fieldNames, TypeInformation<?>[] fieldTypes) {
+        return new CollectStreamTableSink(targetAddress, targetPort, serializer, tableSchema);
+    }
 
-	@Override
-	public TypeInformation<Row> getRecordType() {
-		return getTableSchema().toRowType();
-	}
+    @Override
+    public TypeInformation<Row> getRecordType() {
+        return getTableSchema().toRowType();
+    }
 
-	@Override
-	public DataStreamSink<?> consumeDataStream(DataStream<Tuple2<Boolean, Row>> stream) {
-		// add sink
-		return stream
-			.addSink(new CollectSink<>(targetAddress, targetPort, serializer))
-			.name("SQL Gateway Stream Collect Sink")
-			.setParallelism(1);
-	}
+    @Override
+    public DataStreamSink<?> consumeDataStream(DataStream<Tuple2<Boolean, Row>> stream) {
+        // add sink
+        return stream
+                .addSink(new CollectSink<>(targetAddress, targetPort, serializer))
+                .name("SQL Gateway Stream Collect Sink")
+                .setParallelism(1);
+    }
 
-	@Override
-	public TupleTypeInfo<Tuple2<Boolean, Row>> getOutputType() {
-		return new TupleTypeInfo<>(Types.BOOLEAN, getRecordType());
-	}
+    @Override
+    public TupleTypeInfo<Tuple2<Boolean, Row>> getOutputType() {
+        return new TupleTypeInfo<>(Types.BOOLEAN, getRecordType());
+    }
 }

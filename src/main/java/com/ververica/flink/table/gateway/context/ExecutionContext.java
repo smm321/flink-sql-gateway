@@ -24,7 +24,8 @@ import com.ververica.flink.table.gateway.config.entries.ExecutionEntry;
 import com.ververica.flink.table.gateway.config.entries.TemporalTableEntry;
 import com.ververica.flink.table.gateway.config.entries.ViewEntry;
 import com.ververica.flink.table.gateway.utils.SqlExecutionException;
-
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.Options;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.api.dag.Transformation;
@@ -58,7 +59,14 @@ import org.apache.flink.table.delegation.ExecutorFactory;
 import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.delegation.PlannerFactory;
 import org.apache.flink.table.descriptors.CoreModuleDescriptorValidator;
-import org.apache.flink.table.factories.*;
+import org.apache.flink.table.factories.BatchTableSinkFactory;
+import org.apache.flink.table.factories.BatchTableSourceFactory;
+import org.apache.flink.table.factories.ComponentFactoryService;
+import org.apache.flink.table.factories.FactoryUtil;
+import org.apache.flink.table.factories.ModuleFactory;
+import org.apache.flink.table.factories.TableFactoryService;
+import org.apache.flink.table.factories.TableSinkFactory;
+import org.apache.flink.table.factories.TableSourceFactory;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionService;
@@ -71,17 +79,18 @@ import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TemporaryClassLoaderContext;
-
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.Options;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
-
 import java.lang.reflect.Method;
 import java.net.URL;
-import java.util.*;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -98,653 +107,688 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 public class ExecutionContext<ClusterID> {
 
-	private static final Logger LOG = LoggerFactory.getLogger(ExecutionContext.class);
+    private static final Logger LOG = LoggerFactory.getLogger(ExecutionContext.class);
 
-	private final Environment environment;
-	private final ClassLoader classLoader;
+    private final Environment environment;
+    private final ClassLoader classLoader;
 
-	private final Configuration flinkConfig;
-	private final ClusterClientFactory<ClusterID> clusterClientFactory;
+    private final Configuration flinkConfig;
+    private final ClusterClientFactory<ClusterID> clusterClientFactory;
 
-	private ExecutionEnvironment execEnv;
-	private StreamExecutionEnvironment streamExecEnv;
-	private TableEnvironment tableEnv;
-	private Executor executor;
+    private ExecutionEnvironment execEnv;
+    private StreamExecutionEnvironment streamExecEnv;
+    private TableEnvironment tableEnv;
+    private Executor executor;
+    private FunctionCatalog functionCatalog;
 
-	// Members that should be reused in the same session.
-	private SessionState sessionState;
+    // Members that should be reused in the same session.
+    private SessionState sessionState;
 
-	private ExecutionContext(
-			Environment environment,
-			@Nullable SessionState sessionState,
-			List<URL> dependencies,
-			Configuration flinkConfig,
-			ClusterClientServiceLoader clusterClientServiceLoader,
-			Options commandLineOptions,
-			List<CustomCommandLine> availableCommandLines) throws FlinkException {
-		this.environment = environment;
+    private ExecutionContext(
+            Environment environment,
+            @Nullable SessionState sessionState,
+            List<URL> dependencies,
+            Configuration flinkConfig,
+            ClusterClientServiceLoader clusterClientServiceLoader,
+            Options commandLineOptions,
+            List<CustomCommandLine> availableCommandLines) throws FlinkException {
+        this.environment = environment;
 
-		this.flinkConfig = flinkConfig;
+        this.flinkConfig = flinkConfig;
 
-		// create class loader
-		classLoader = ClientUtils.buildUserCodeClassLoader(
-			dependencies,
-			Collections.emptyList(),
-			this.getClass().getClassLoader(),
-			flinkConfig);
+        // create class loader
+        classLoader = ClientUtils.buildUserCodeClassLoader(
+                dependencies,
+                Collections.emptyList(),
+                this.getClass().getClassLoader(),
+                flinkConfig);
 
-		// Initialize the TableEnvironment.
-		initializeTableEnvironment(sessionState);
+        // Initialize the TableEnvironment.
+        initializeTableEnvironment(sessionState);
 
-		LOG.debug("Deployment descriptor: {}", environment.getDeployment());
-		final CommandLine commandLine = createCommandLine(
-			environment.getDeployment(),
-			commandLineOptions);
+        LOG.debug("Deployment descriptor: {}", environment.getDeployment());
+        final CommandLine commandLine = createCommandLine(
+                environment.getDeployment(),
+                commandLineOptions);
 
-		flinkConfig.addAll(createExecutionConfig(
-			commandLine,
-			commandLineOptions,
-			availableCommandLines,
-			dependencies));
+        flinkConfig.addAll(createExecutionConfig(
+                commandLine,
+                commandLineOptions,
+                availableCommandLines,
+                dependencies));
 
-		final ClusterClientServiceLoader serviceLoader = checkNotNull(clusterClientServiceLoader);
-		clusterClientFactory = serviceLoader.getClusterClientFactory(flinkConfig);
-		checkState(clusterClientFactory != null);
-	}
+        final ClusterClientServiceLoader serviceLoader = checkNotNull(clusterClientServiceLoader);
+        clusterClientFactory = serviceLoader.getClusterClientFactory(flinkConfig);
+        checkState(clusterClientFactory != null);
+    }
 
-	public StreamTableEnvironmentImpl getStreamTableEnvironmentImpl() {
-		return (StreamTableEnvironmentImpl) tableEnv;
-	}
+    public StreamTableEnvironmentImpl getStreamTableEnvironmentImpl() {
+        return (StreamTableEnvironmentImpl) tableEnv;
+    }
+
+    public Configuration getFlinkConfig() {
+        return flinkConfig;
+    }
+
+    public ClassLoader getClassLoader() {
+        return classLoader;
+    }
+
+    public Environment getEnvironment() {
+        return environment;
+    }
+
+    public ClusterDescriptor<ClusterID> createClusterDescriptor(Configuration configuration) {
+        return clusterClientFactory.createClusterDescriptor(configuration);
+    }
+
+    public Map<String, Catalog> getCatalogs() {
+        Map<String, Catalog> catalogs = new HashMap<>();
+        for (String name : tableEnv.listCatalogs()) {
+            tableEnv.getCatalog(name).ifPresent(c -> catalogs.put(name, c));
+        }
+        return catalogs;
+    }
+
+    public SessionState getSessionState() {
+        return this.sessionState;
+    }
+
+    /**
+     * Executes the given supplier using the execution context's classloader as thread classloader.
+     */
+    public <R> R wrapClassLoader(Supplier<R> supplier) {
+        try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(classLoader)) {
+            return supplier.get();
+        }
+    }
+
+    /**
+     * Executes the given Runnable using the execution context's classloader as thread classloader.
+     */
+    void wrapClassLoader(Runnable runnable) {
+        try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(classLoader)) {
+            runnable.run();
+        }
+    }
+
+    public TableEnvironment getTableEnvironment() {
+        return tableEnv;
+    }
+
+    public ExecutionConfig getExecutionConfig() {
+        if (streamExecEnv != null) {
+            return streamExecEnv.getConfig();
+        } else {
+            return execEnv.getConfig();
+        }
+    }
+
+    public ClusterClientFactory<ClusterID> getClusterClientFactory() {
+        return clusterClientFactory;
+    }
+
+    public Pipeline createPipeline(String name) {
+        return wrapClassLoader(() -> {
+            if (streamExecEnv != null) {
+                StreamTableEnvironmentImpl streamTableEnv = (StreamTableEnvironmentImpl) tableEnv;
+                return streamTableEnv.getPipeline(name);
+            } else {
+                BatchTableEnvironmentImpl batchTableEnv = (BatchTableEnvironmentImpl) tableEnv;
+                return batchTableEnv.getPipeline(name);
+            }
+        });
+    }
+
+    public Pipeline createPipeline(String name, List<Transformation<?>> operations) {
+        return wrapClassLoader(() -> {
+            return executor.createPipeline(operations, tableEnv.getConfig(), name);
+        });
+    }
 
 
-	public Configuration getFlinkConfig() {
-		return flinkConfig;
-	}
+    /**
+     * Returns a builder for this {@link ExecutionContext}.
+     */
+    public static Builder builder(
+            Environment defaultEnv,
+            Environment sessionEnv,
+            List<URL> dependencies,
+            Configuration configuration,
+            ClusterClientServiceLoader serviceLoader,
+            Options commandLineOptions,
+            List<CustomCommandLine> commandLines) {
+        return new Builder(defaultEnv, sessionEnv, dependencies, configuration,
+                serviceLoader, commandLineOptions, commandLines);
+    }
 
-	public ClassLoader getClassLoader() {
-		return classLoader;
-	}
+    //------------------------------------------------------------------------------------------------------------------
+    // Non-public methods
+    //------------------------------------------------------------------------------------------------------------------
 
-	public Environment getEnvironment() {
-		return environment;
-	}
+    private static Configuration createExecutionConfig(
+            CommandLine commandLine,
+            Options commandLineOptions,
+            List<CustomCommandLine> availableCommandLines,
+            List<URL> dependencies) throws FlinkException {
+        LOG.debug("Available commandline options: {}", commandLineOptions);
+        List<String> options = Stream
+                .of(commandLine.getOptions())
+                .map(o -> o.getOpt() + "=" + o.getValue())
+                .collect(Collectors.toList());
+        LOG.debug(
+                "Instantiated commandline args: {}, options: {}",
+                commandLine.getArgList(),
+                options);
 
-	public ClusterDescriptor<ClusterID> createClusterDescriptor(Configuration configuration) {
-		return clusterClientFactory.createClusterDescriptor(configuration);
-	}
+        final CustomCommandLine activeCommandLine = findActiveCommandLine(
+                availableCommandLines,
+                commandLine);
+        LOG.debug(
+                "Available commandlines: {}, active commandline: {}",
+                availableCommandLines,
+                activeCommandLine);
 
-	public Map<String, Catalog> getCatalogs() {
-		Map<String, Catalog> catalogs = new HashMap<>();
-		for (String name : tableEnv.listCatalogs()) {
-			tableEnv.getCatalog(name).ifPresent(c -> catalogs.put(name, c));
-		}
-		return catalogs;
-	}
+        Configuration executionConfig = activeCommandLine.toConfiguration(commandLine);
 
-	public SessionState getSessionState() {
-		return this.sessionState;
-	}
+        try {
+            final ProgramOptions programOptions = ProgramOptions.create(commandLine);
+            final ExecutionConfigAccessor executionConfigAccessor = ExecutionConfigAccessor
+                    .fromProgramOptions(programOptions, dependencies);
+            executionConfigAccessor.applyToConfiguration(executionConfig);
+        } catch (CliArgsException e) {
+            throw new SqlExecutionException("Invalid deployment run options.", e);
+        }
 
-	/**
-	 * Executes the given supplier using the execution context's classloader as thread classloader.
-	 */
-	public <R> R wrapClassLoader(Supplier<R> supplier) {
-		try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(classLoader)) {
-			return supplier.get();
-		}
-	}
+        LOG.info("Executor config: {}", executionConfig);
+        return executionConfig;
+    }
 
-	/**
-	 * Executes the given Runnable using the execution context's classloader as thread classloader.
-	 */
-	void wrapClassLoader(Runnable runnable) {
-		try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(classLoader)) {
-			runnable.run();
-		}
-	}
+    private static CommandLine createCommandLine(DeploymentEntry deployment, Options commandLineOptions) {
+        try {
+            return deployment.getCommandLine(commandLineOptions);
+        } catch (Exception e) {
+            throw new SqlExecutionException("Invalid deployment options.", e);
+        }
+    }
 
-	public TableEnvironment getTableEnvironment() {
-		return tableEnv;
-	}
+    private static CustomCommandLine findActiveCommandLine(List<CustomCommandLine> availableCommandLines,
+                                                           CommandLine commandLine) {
+        for (CustomCommandLine cli : availableCommandLines) {
+            if (cli.isActive(commandLine)) {
+                return cli;
+            }
+        }
+        throw new SqlExecutionException("Could not find a matching deployment.");
+    }
 
-	public ExecutionConfig getExecutionConfig() {
-		if (streamExecEnv != null) {
-			return streamExecEnv.getConfig();
-		} else {
-			return execEnv.getConfig();
-		}
-	}
+    private Module createModule(Map<String, String> moduleProperties, ClassLoader classLoader) {
+        final ModuleFactory factory =
+                TableFactoryService.find(ModuleFactory.class, moduleProperties, classLoader);
+        return factory.createModule(moduleProperties);
+    }
 
-	public ClusterClientFactory<ClusterID> getClusterClientFactory() {
-		return clusterClientFactory;
-	}
+    private Catalog createCatalog(String name, Map<String, String> catalogProperties, ClassLoader classLoader) {
 
-	public Pipeline createPipeline(String name) {
-		return wrapClassLoader(() -> {
-			if (streamExecEnv != null) {
-				StreamTableEnvironmentImpl streamTableEnv = (StreamTableEnvironmentImpl) tableEnv;
-				return streamTableEnv.getPipeline(name);
-			} else {
-				BatchTableEnvironmentImpl batchTableEnv = (BatchTableEnvironmentImpl) tableEnv;
-				return batchTableEnv.getPipeline(name);
-			}
-		});
-	}
-
-	public Pipeline createPipeline(String name, List<Transformation<?>> operations) {
-		return wrapClassLoader(() -> {
-			return executor.createPipeline(operations, tableEnv.getConfig(), name);
-		});
-	}
-
-
-	/** Returns a builder for this {@link ExecutionContext}. */
-	public static Builder builder(
-			Environment defaultEnv,
-			Environment sessionEnv,
-			List<URL> dependencies,
-			Configuration configuration,
-			ClusterClientServiceLoader serviceLoader,
-			Options commandLineOptions,
-			List<CustomCommandLine> commandLines) {
-		return new Builder(defaultEnv, sessionEnv, dependencies, configuration,
-			serviceLoader, commandLineOptions, commandLines);
-	}
-
-	//------------------------------------------------------------------------------------------------------------------
-	// Non-public methods
-	//------------------------------------------------------------------------------------------------------------------
-
-	private static Configuration createExecutionConfig(
-			CommandLine commandLine,
-			Options commandLineOptions,
-			List<CustomCommandLine> availableCommandLines,
-			List<URL> dependencies) throws FlinkException {
-		LOG.debug("Available commandline options: {}", commandLineOptions);
-		List<String> options = Stream
-			.of(commandLine.getOptions())
-			.map(o -> o.getOpt() + "=" + o.getValue())
-			.collect(Collectors.toList());
-		LOG.debug(
-			"Instantiated commandline args: {}, options: {}",
-			commandLine.getArgList(),
-			options);
-
-		final CustomCommandLine activeCommandLine = findActiveCommandLine(
-			availableCommandLines,
-			commandLine);
-		LOG.debug(
-			"Available commandlines: {}, active commandline: {}",
-			availableCommandLines,
-			activeCommandLine);
-
-		Configuration executionConfig = activeCommandLine.toConfiguration(commandLine);
-
-		try {
-			final ProgramOptions programOptions = ProgramOptions.create(commandLine);
-			final ExecutionConfigAccessor executionConfigAccessor = ExecutionConfigAccessor
-				.fromProgramOptions(programOptions, dependencies);
-			executionConfigAccessor.applyToConfiguration(executionConfig);
-		} catch (CliArgsException e) {
-			throw new SqlExecutionException("Invalid deployment run options.", e);
-		}
-
-		LOG.info("Executor config: {}", executionConfig);
-		return executionConfig;
-	}
-
-	private static CommandLine createCommandLine(DeploymentEntry deployment, Options commandLineOptions) {
-		try {
-			return deployment.getCommandLine(commandLineOptions);
-		} catch (Exception e) {
-			throw new SqlExecutionException("Invalid deployment options.", e);
-		}
-	}
-
-	private static CustomCommandLine findActiveCommandLine(List<CustomCommandLine> availableCommandLines,
-		CommandLine commandLine) {
-		for (CustomCommandLine cli : availableCommandLines) {
-			if (cli.isActive(commandLine)) {
-				return cli;
-			}
-		}
-		throw new SqlExecutionException("Could not find a matching deployment.");
-	}
-
-	private Module createModule(Map<String, String> moduleProperties, ClassLoader classLoader) {
-		final ModuleFactory factory =
-			TableFactoryService.find(ModuleFactory.class, moduleProperties, classLoader);
-		return factory.createModule(moduleProperties);
-	}
-
-	private Catalog createCatalog(String name, Map<String, String> catalogProperties, ClassLoader classLoader) {
-
-		Catalog catalog =
-				FactoryUtil.createCatalog(
-						name,
-						catalogProperties,
-						tableEnv.getConfig().getConfiguration(),
-						classLoader);
-		return catalog;
+        Catalog catalog =
+                FactoryUtil.createCatalog(
+                        name,
+                        catalogProperties,
+                        tableEnv.getConfig().getConfiguration(),
+                        classLoader);
+        return catalog;
 //		final CatalogFactory factory =
 //			TableFactoryService.find(CatalogFactory.class, catalogProperties, classLoader);
 //		return factory.createCatalog(name, catalogProperties);
-	}
+    }
 
-	private static TableSource<?> createTableSource(ExecutionEntry execution, Map<String, String> sourceProperties,
-		ClassLoader classLoader) {
-		if (execution.isStreamingPlanner()) {
-			final TableSourceFactory<?> factory = (TableSourceFactory<?>)
-				TableFactoryService.find(TableSourceFactory.class, sourceProperties, classLoader);
-			return factory.createTableSource(sourceProperties);
-		} else if (execution.isBatchPlanner()) {
-			final BatchTableSourceFactory<?> factory = (BatchTableSourceFactory<?>)
-				TableFactoryService.find(BatchTableSourceFactory.class, sourceProperties, classLoader);
-			return factory.createBatchTableSource(sourceProperties);
-		}
-		throw new SqlExecutionException("Unsupported execution type for sources.");
-	}
+    private static TableSource<?> createTableSource(ExecutionEntry execution, Map<String, String> sourceProperties,
+                                                    ClassLoader classLoader) {
+        if (execution.isStreamingPlanner()) {
+            final TableSourceFactory<?> factory = (TableSourceFactory<?>)
+                    TableFactoryService.find(TableSourceFactory.class, sourceProperties, classLoader);
+            return factory.createTableSource(sourceProperties);
+        } else if (execution.isBatchPlanner()) {
+            final BatchTableSourceFactory<?> factory = (BatchTableSourceFactory<?>)
+                    TableFactoryService.find(BatchTableSourceFactory.class, sourceProperties, classLoader);
+            return factory.createBatchTableSource(sourceProperties);
+        }
+        throw new SqlExecutionException("Unsupported execution type for sources.");
+    }
 
-	private static TableSink<?> createTableSink(ExecutionEntry execution, Map<String, String> sinkProperties,
-		ClassLoader classLoader) {
-		if (execution.isStreamingPlanner()) {
-			final TableSinkFactory<?> factory = (TableSinkFactory<?>)
-				TableFactoryService.find(TableSinkFactory.class, sinkProperties, classLoader);
-			return factory.createTableSink(sinkProperties);
-		} else if (execution.isBatchPlanner()) {
-			final BatchTableSinkFactory<?> factory = (BatchTableSinkFactory<?>)
-				TableFactoryService.find(BatchTableSinkFactory.class, sinkProperties, classLoader);
-			return factory.createBatchTableSink(sinkProperties);
-		}
-		throw new SqlExecutionException("Unsupported execution type for sinks.");
-	}
+    private static TableSink<?> createTableSink(ExecutionEntry execution, Map<String, String> sinkProperties,
+                                                ClassLoader classLoader) {
+        if (execution.isStreamingPlanner()) {
+            final TableSinkFactory<?> factory = (TableSinkFactory<?>)
+                    TableFactoryService.find(TableSinkFactory.class, sinkProperties, classLoader);
+            return factory.createTableSink(sinkProperties);
+        } else if (execution.isBatchPlanner()) {
+            final BatchTableSinkFactory<?> factory = (BatchTableSinkFactory<?>)
+                    TableFactoryService.find(BatchTableSinkFactory.class, sinkProperties, classLoader);
+            return factory.createBatchTableSink(sinkProperties);
+        }
+        throw new SqlExecutionException("Unsupported execution type for sinks.");
+    }
 
-	private TableEnvironment createStreamTableEnvironment(
-			StreamExecutionEnvironment env,
-			EnvironmentSettings settings,
-			TableConfig config,
-			Executor executor,
-			CatalogManager catalogManager,
-			ModuleManager moduleManager,
-			FunctionCatalog functionCatalog) {
-		final Map<String, String> plannerProperties = settings.toPlannerProperties();
-		final Planner planner = ComponentFactoryService.find(PlannerFactory.class, plannerProperties)
-			.create(plannerProperties, executor, config, functionCatalog, catalogManager);
+    private TableEnvironment createStreamTableEnvironment(
+            StreamExecutionEnvironment env,
+            EnvironmentSettings settings,
+            TableConfig config,
+            Executor executor,
+            CatalogManager catalogManager,
+            ModuleManager moduleManager,
+            FunctionCatalog functionCatalog) {
+        final Map<String, String> plannerProperties = settings.toPlannerProperties();
+        final Planner planner = ComponentFactoryService.find(PlannerFactory.class, plannerProperties)
+                .create(plannerProperties, executor, config, functionCatalog, catalogManager);
 
-		return new StreamTableEnvironmentImpl(
-			catalogManager,
-			moduleManager,
-			functionCatalog,
-			config,
-			env,
-			planner,
-			executor,
-			settings.isStreamingMode(),
-			classLoader);
-	}
+        return new StreamTableEnvironmentImpl(
+                catalogManager,
+                moduleManager,
+                functionCatalog,
+                config,
+                env,
+                planner,
+                executor,
+                settings.isStreamingMode(),
+                classLoader);
+    }
 
-	private static Executor lookupExecutor(
-			Map<String, String> executorProperties,
-			StreamExecutionEnvironment executionEnvironment) {
-		try {
-			ExecutorFactory executorFactory = ComponentFactoryService.find(ExecutorFactory.class, executorProperties);
-			Method createMethod = executorFactory.getClass()
-				.getMethod("create", Map.class, StreamExecutionEnvironment.class);
+    private static Executor lookupExecutor(
+            Map<String, String> executorProperties,
+            StreamExecutionEnvironment executionEnvironment) {
+        try {
+            ExecutorFactory executorFactory = ComponentFactoryService.find(ExecutorFactory.class, executorProperties);
+            Method createMethod = executorFactory.getClass()
+                    .getMethod("create", Map.class, StreamExecutionEnvironment.class);
 
-			return (Executor) createMethod.invoke(
-				executorFactory,
-				executorProperties,
-				executionEnvironment);
-		} catch (Exception e) {
-			throw new TableException(
-				"Could not instantiate the executor. Make sure a planner module is on the classpath",
-				e);
-		}
-	}
+            return (Executor) createMethod.invoke(
+                    executorFactory,
+                    executorProperties,
+                    executionEnvironment);
+        } catch (Exception e) {
+            throw new TableException(
+                    "Could not instantiate the executor. Make sure a planner module is on the classpath",
+                    e);
+        }
+    }
 
-	private void initializeTableEnvironment(@Nullable SessionState sessionState) {
-		final EnvironmentSettings settings = environment.getExecution().getEnvironmentSettings();
-		// Step 0.0 Initialize the table configuration.
-		final TableConfig config = new TableConfig();
-		environment.getConfiguration().asMap().forEach((k, v) ->
-			config.getConfiguration().setString(k, v));
-		final boolean noInheritedState = sessionState == null;
-		if (noInheritedState) {
-			//--------------------------------------------------------------------------------------------------------------
-			// Step.1 Create environments
-			//--------------------------------------------------------------------------------------------------------------
-			// Step 1.0 Initialize the ModuleManager if required.
-			final ModuleManager moduleManager = new ModuleManager();
-			// Step 1.1 Initialize the CatalogManager if required.
-			final CatalogManager catalogManager = CatalogManager.newBuilder()
-				.classLoader(classLoader)
-				.config(config.getConfiguration())
-				.defaultCatalog(
-					settings.getBuiltInCatalogName(),
-					new GenericInMemoryCatalog(
-						settings.getBuiltInCatalogName(),
-						settings.getBuiltInDatabaseName()))
-				.build();
-			// Step 1.2 Initialize the FunctionCatalog if required.
-			final FunctionCatalog functionCatalog = new FunctionCatalog(config, catalogManager, moduleManager);
-			// Step 1.4 Set up session state.
-			this.sessionState = SessionState.of(catalogManager, moduleManager, functionCatalog);
+    private void initializeTableEnvironment(@Nullable SessionState sessionState) {
+        final EnvironmentSettings settings = environment.getExecution().getEnvironmentSettings();
+        // Step 0.0 Initialize the table configuration.
+        final TableConfig config = new TableConfig();
+        environment.getConfiguration().asMap().forEach((k, v) ->
+                config.getConfiguration().setString(k, v));
+        final boolean noInheritedState = sessionState == null;
+        if (noInheritedState) {
+            //--------------------------------------------------------------------------------------------------------------
+            // Step.1 Create environments
+            //--------------------------------------------------------------------------------------------------------------
+            // Step 1.0 Initialize the ModuleManager if required.
+            final ModuleManager moduleManager = new ModuleManager();
+            // Step 1.1 Initialize the CatalogManager if required.
+            final CatalogManager catalogManager = CatalogManager.newBuilder()
+                    .classLoader(classLoader)
+                    .config(config.getConfiguration())
+                    .defaultCatalog(
+                            settings.getBuiltInCatalogName(),
+                            new GenericInMemoryCatalog(
+                                    settings.getBuiltInCatalogName(),
+                                    settings.getBuiltInDatabaseName()))
+                    .build();
+            // Step 1.2 Initialize the FunctionCatalog if required.
+            functionCatalog = new FunctionCatalog(config, catalogManager, moduleManager);
+            // Step 1.4 Set up session state.
+            this.sessionState = SessionState.of(catalogManager, moduleManager, functionCatalog);
 
-			// Must initialize the table environment before actually the
-			createTableEnvironment(settings, config, catalogManager, moduleManager, functionCatalog);
+            // Must initialize the table environment before actually the
+            createTableEnvironment(settings, config, catalogManager, moduleManager, functionCatalog);
 
-			//--------------------------------------------------------------------------------------------------------------
-			// Step.2 Create modules and load them into the TableEnvironment.
-			//--------------------------------------------------------------------------------------------------------------
-			// No need to register the modules info if already inherit from the same session.
-			Map<String, Module> modules = new LinkedHashMap<>();
-			environment.getModules().forEach((name, entry) ->
-				modules.put(name, createModule(entry.asMap(), classLoader))
-			);
-			if (!modules.isEmpty()) {
-				// unload core module first to respect whatever users configure
-				tableEnv.unloadModule(CoreModuleDescriptorValidator.MODULE_TYPE_CORE);
-				modules.forEach(tableEnv::loadModule);
-			}
+            //--------------------------------------------------------------------------------------------------------------
+            // Step.2 Create modules and load them into the TableEnvironment.
+            //--------------------------------------------------------------------------------------------------------------
+            // No need to register the modules info if already inherit from the same session.
+            Map<String, Module> modules = new LinkedHashMap<>();
+            environment.getModules().forEach((name, entry) ->
+                    modules.put(name, createModule(entry.asMap(), classLoader))
+            );
+            if (!modules.isEmpty()) {
+                // unload core module first to respect whatever users configure
+                tableEnv.unloadModule(CoreModuleDescriptorValidator.MODULE_TYPE_CORE);
+                modules.forEach(tableEnv::loadModule);
+            }
 
-			//--------------------------------------------------------------------------------------------------------------
-			// Step.3 create user-defined functions and temporal tables then register them.
-			//--------------------------------------------------------------------------------------------------------------
-			// No need to register the functions if already inherit from the same session.
-			registerFunctions();
+            //--------------------------------------------------------------------------------------------------------------
+            // Step.3 create user-defined functions and temporal tables then register them.
+            //--------------------------------------------------------------------------------------------------------------
+            // No need to register the functions if already inherit from the same session.
+            registerFunctions();
 
-			//--------------------------------------------------------------------------------------------------------------
-			// Step.4 Create catalogs and register them.
-			//--------------------------------------------------------------------------------------------------------------
-			// No need to register the catalogs if already inherit from the same session.
-			initializeCatalogs();
-		} else {
-			// Set up session state.
-			this.sessionState = sessionState;
-			createTableEnvironment(
-				settings,
-				config,
-				sessionState.catalogManager,
-				sessionState.moduleManager,
-				sessionState.functionCatalog);
-		}
-	}
+            //--------------------------------------------------------------------------------------------------------------
+            // Step.4 Create catalogs and register them.
+            //--------------------------------------------------------------------------------------------------------------
+            // No need to register the catalogs if already inherit from the same session.
+            initializeCatalogs();
+            //--------------------------------------------------------------------------------------------------------------
+            // Step.5 Enable dynamic-table-options.
+            //--------------------------------------------------------------------------------------------------------------
+            // todo !!
+            tableEnv.getConfig().getConfiguration().setBoolean("table.dynamic-table-options.enabled", true);
+            registerUdf(tableEnv);
+        } else {
+            // Set up session state.
+            this.sessionState = sessionState;
+            createTableEnvironment(
+                    settings,
+                    config,
+                    sessionState.catalogManager,
+                    sessionState.moduleManager,
+                    sessionState.functionCatalog);
+        }
+    }
 
-	private void createTableEnvironment(
-			EnvironmentSettings settings,
-			TableConfig config,
-			CatalogManager catalogManager,
-			ModuleManager moduleManager,
-			FunctionCatalog functionCatalog) {
-		if (environment.getExecution().isStreamingPlanner()) {
-			streamExecEnv = createStreamExecutionEnvironment();
-			execEnv = null;
+    private void createTableEnvironment(
+            EnvironmentSettings settings,
+            TableConfig config,
+            CatalogManager catalogManager,
+            ModuleManager moduleManager,
+            FunctionCatalog functionCatalog) {
+        if (environment.getExecution().isStreamingPlanner()) {
+            streamExecEnv = createStreamExecutionEnvironment();
+            execEnv = null;
 
-			final Map<String, String> executorProperties = settings.toExecutorProperties();
-			executor = lookupExecutor(executorProperties, streamExecEnv);
-			tableEnv = createStreamTableEnvironment(
-				streamExecEnv,
-				settings,
-				config,
-				executor,
-				catalogManager,
-				moduleManager,
-				functionCatalog);
-		} else if (environment.getExecution().isBatchPlanner()) {
-			streamExecEnv = null;
-			execEnv = createExecutionEnvironment();
-			executor = null;
-			tableEnv = new BatchTableEnvironmentImpl(
-				execEnv,
-				config,
-				catalogManager,
-				moduleManager);
-		} else {
-			throw new SqlExecutionException("Unsupported execution type specified.");
-		}
-	}
+            final Map<String, String> executorProperties = settings.toExecutorProperties();
+            executor = lookupExecutor(executorProperties, streamExecEnv);
+            tableEnv = createStreamTableEnvironment(
+                    streamExecEnv,
+                    settings,
+                    config,
+                    executor,
+                    catalogManager,
+                    moduleManager,
+                    functionCatalog);
+        } else if (environment.getExecution().isBatchPlanner()) {
+            streamExecEnv = null;
+            execEnv = createExecutionEnvironment();
+            executor = null;
+            tableEnv = new BatchTableEnvironmentImpl(
+                    execEnv,
+                    config,
+                    catalogManager,
+                    moduleManager);
+        } else {
+            throw new SqlExecutionException("Unsupported execution type specified.");
+        }
+    }
 
-	private void initializeCatalogs() {
-		//--------------------------------------------------------------------------------------------------------------
-		// Step.1 Create catalogs and register them.
-		//--------------------------------------------------------------------------------------------------------------
-		wrapClassLoader(() -> {
-			environment.getCatalogs().forEach((name, entry) -> {
-				Catalog catalog = createCatalog(name, entry.asMap(), classLoader);
-				tableEnv.registerCatalog(name, catalog);
-			});
+    private void initializeCatalogs() {
+        //--------------------------------------------------------------------------------------------------------------
+        // Step.1 Create catalogs and register them.
+        //--------------------------------------------------------------------------------------------------------------
+        wrapClassLoader(() -> {
+            environment.getCatalogs().forEach((name, entry) -> {
+                Catalog catalog = createCatalog(name, entry.asMap(), classLoader);
+                tableEnv.registerCatalog(name, catalog);
+            });
 //			HiveCatalog hive = new HiveCatalog("flinkcatalog", "uat_realtime", "/etc/hive/conf");
 //			tableEnv.registerCatalog("flinkcatalog", hive);
-		});
+        });
 
-		//--------------------------------------------------------------------------------------------------------------
-		// Step.2 create table sources & sinks, and register them.
-		//--------------------------------------------------------------------------------------------------------------
-		Map<String, TableSource<?>> tableSources = new HashMap<>();
-		Map<String, TableSink<?>> tableSinks = new HashMap<>();
-		environment.getTables().forEach((name, entry) -> {
+        //--------------------------------------------------------------------------------------------------------------
+        // Step.2 create table sources & sinks, and register them.
+        //--------------------------------------------------------------------------------------------------------------
+        Map<String, TableSource<?>> tableSources = new HashMap<>();
+        Map<String, TableSink<?>> tableSinks = new HashMap<>();
+        environment.getTables().forEach((name, entry) -> {
 //			if (entry instanceof SourceTableEntry || entry instanceof SourceSinkTableEntry) {
 //				tableSources.put(name, createTableSource(environment.getExecution(), entry.asMap(), classLoader));
 //			}
 //			if (entry instanceof SinkTableEntry || entry instanceof SourceSinkTableEntry) {
 //				tableSinks.put(name, createTableSink(environment.getExecution(), entry.asMap(), classLoader));
 //			}
-			tableEnv.createTemporaryView(name,tableEnv.scan(name));
-		});
+            tableEnv.createTemporaryView(name, tableEnv.scan(name));
+        });
 
-		// register table sources
+        // register table sources
 //		tableSources.forEach((k, v) -> {
 //			tableEnv.createTemporaryView(k, tableEnv.fromTableSource(v));
 //		});
-		// register table sinks
-		// tableSinks.forEach(tableEnv::registerTableSink);
+        // register table sinks
+        // tableSinks.forEach(tableEnv::registerTableSink);
 
-		//--------------------------------------------------------------------------------------------------------------
-		// Step.4 Register temporal tables.
-		//--------------------------------------------------------------------------------------------------------------
-		environment.getTables().forEach((name, entry) -> {
-			if (entry instanceof TemporalTableEntry) {
-				final TemporalTableEntry temporalTableEntry = (TemporalTableEntry) entry;
-				registerTemporalTable(temporalTableEntry);
-			}
-		});
+        //--------------------------------------------------------------------------------------------------------------
+        // Step.4 Register temporal tables.
+        //--------------------------------------------------------------------------------------------------------------
+        environment.getTables().forEach((name, entry) -> {
+            if (entry instanceof TemporalTableEntry) {
+                final TemporalTableEntry temporalTableEntry = (TemporalTableEntry) entry;
+                registerTemporalTable(temporalTableEntry);
+            }
+        });
 
-		//--------------------------------------------------------------------------------------------------------------
-		// Step.5 Register views in specified order.
-		//--------------------------------------------------------------------------------------------------------------
-		environment.getTables().forEach((name, entry) -> {
-			// if registering a view fails at this point,
-			// it means that it accesses tables that are not available anymore
-			if (entry instanceof ViewEntry) {
-				final ViewEntry viewEntry = (ViewEntry) entry;
-				registerView(viewEntry);
-			}
-		});
+        //--------------------------------------------------------------------------------------------------------------
+        // Step.5 Register views in specified order.
+        //--------------------------------------------------------------------------------------------------------------
+        environment.getTables().forEach((name, entry) -> {
+            // if registering a view fails at this point,
+            // it means that it accesses tables that are not available anymore
+            if (entry instanceof ViewEntry) {
+                final ViewEntry viewEntry = (ViewEntry) entry;
+                registerView(viewEntry);
+            }
+        });
 
-		//--------------------------------------------------------------------------------------------------------------
-		// Step.6 Set current catalog and database.
-		//--------------------------------------------------------------------------------------------------------------
-		// Switch to the current catalog.
-		Optional<String> catalog = environment.getExecution().getCurrentCatalog();
-		catalog.ifPresent(tableEnv::useCatalog);
+        //--------------------------------------------------------------------------------------------------------------
+        // Step.6 Set current catalog and database.
+        //--------------------------------------------------------------------------------------------------------------
+        // Switch to the current catalog.
+        Optional<String> catalog = environment.getExecution().getCurrentCatalog();
+        catalog.ifPresent(tableEnv::useCatalog);
 
-		// Switch to the current database.
-		Optional<String> database = environment.getExecution().getCurrentDatabase();
-		database.ifPresent(tableEnv::useDatabase);
-	}
+        // Switch to the current database.
+        Optional<String> database = environment.getExecution().getCurrentDatabase();
+        database.ifPresent(tableEnv::useDatabase);
+    }
 
-	private ExecutionEnvironment createExecutionEnvironment() {
-		final ExecutionEnvironment execEnv = ExecutionEnvironment.getExecutionEnvironment();
-		execEnv.setRestartStrategy(environment.getExecution().getRestartStrategy());
-		execEnv.setParallelism(environment.getExecution().getParallelism());
-		return execEnv;
-	}
+    private ExecutionEnvironment createExecutionEnvironment() {
+        final ExecutionEnvironment execEnv = ExecutionEnvironment.getExecutionEnvironment();
+        execEnv.setRestartStrategy(environment.getExecution().getRestartStrategy());
+        execEnv.setParallelism(environment.getExecution().getParallelism());
+        return execEnv;
+    }
 
-	private StreamExecutionEnvironment createStreamExecutionEnvironment() {
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setRestartStrategy(environment.getExecution().getRestartStrategy());
-		env.setParallelism(environment.getExecution().getParallelism());
-		env.setMaxParallelism(environment.getExecution().getMaxParallelism());
-		env.setStreamTimeCharacteristic(environment.getExecution().getTimeCharacteristic());
-		if (env.getStreamTimeCharacteristic() == TimeCharacteristic.EventTime) {
-			env.getConfig().setAutoWatermarkInterval(environment.getExecution().getPeriodicWatermarksInterval());
-		}
-		return env;
-	}
+    private StreamExecutionEnvironment createStreamExecutionEnvironment() {
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setRestartStrategy(environment.getExecution().getRestartStrategy());
+        env.setParallelism(environment.getExecution().getParallelism());
+        env.setMaxParallelism(environment.getExecution().getMaxParallelism());
+        env.setStreamTimeCharacteristic(environment.getExecution().getTimeCharacteristic());
+        if (env.getStreamTimeCharacteristic() == TimeCharacteristic.EventTime) {
+            env.getConfig().setAutoWatermarkInterval(environment.getExecution().getPeriodicWatermarksInterval());
+        }
+        return env;
+    }
 
-	private void registerFunctions() {
-		Map<String, FunctionDefinition> functions = new LinkedHashMap<>();
-		environment.getFunctions().forEach((name, entry) -> {
-			final UserDefinedFunction function = FunctionService
-				.createFunction(entry.getDescriptor(), classLoader, false);
-			functions.put(name, function);
-		});
-		registerFunctions(functions);
-	}
+    private void registerFunctions() {
+        Map<String, FunctionDefinition> functions = new LinkedHashMap<>();
+        environment.getFunctions().forEach((name, entry) -> {
+            final UserDefinedFunction function = FunctionService
+                    .createFunction(entry.getDescriptor(), classLoader, false);
+            functions.put(name, function);
+        });
+        registerFunctions(functions);
+    }
 
-	private void registerFunctions(Map<String, FunctionDefinition> functions) {
-		if (tableEnv instanceof StreamTableEnvironment) {
-			StreamTableEnvironment streamTableEnvironment = (StreamTableEnvironment) tableEnv;
-			functions.forEach((k, v) -> {
-				if (v instanceof ScalarFunction) {
-					streamTableEnvironment.registerFunction(k, (ScalarFunction) v);
-				} else if (v instanceof AggregateFunction) {
-					streamTableEnvironment.registerFunction(k, (AggregateFunction<?, ?>) v);
-				} else if (v instanceof TableFunction) {
-					streamTableEnvironment.registerFunction(k, (TableFunction<?>) v);
-				} else {
-					throw new SqlExecutionException("Unsupported function type: " + v.getClass().getName());
-				}
-			});
-		} else {
-			BatchTableEnvironment batchTableEnvironment = (BatchTableEnvironment) tableEnv;
-			functions.forEach((k, v) -> {
-				if (v instanceof ScalarFunction) {
-					batchTableEnvironment.registerFunction(k, (ScalarFunction) v);
-				} else if (v instanceof AggregateFunction) {
-					batchTableEnvironment.registerFunction(k, (AggregateFunction<?, ?>) v);
-				} else if (v instanceof TableFunction) {
-					batchTableEnvironment.registerFunction(k, (TableFunction<?>) v);
-				} else {
-					throw new SqlExecutionException("Unsupported function type: " + v.getClass().getName());
-				}
-			});
-		}
-	}
+    private void registerFunctions(Map<String, FunctionDefinition> functions) {
+        if (tableEnv instanceof StreamTableEnvironment) {
+            StreamTableEnvironment streamTableEnvironment = (StreamTableEnvironment) tableEnv;
+            functions.forEach((k, v) -> {
+                if (v instanceof ScalarFunction) {
+                    streamTableEnvironment.registerFunction(k, (ScalarFunction) v);
+                } else if (v instanceof AggregateFunction) {
+                    streamTableEnvironment.registerFunction(k, (AggregateFunction<?, ?>) v);
+                } else if (v instanceof TableFunction) {
+                    streamTableEnvironment.registerFunction(k, (TableFunction<?>) v);
+                } else {
+                    throw new SqlExecutionException("Unsupported function type: " + v.getClass().getName());
+                }
+            });
+        } else {
+            BatchTableEnvironment batchTableEnvironment = (BatchTableEnvironment) tableEnv;
+            functions.forEach((k, v) -> {
+                if (v instanceof ScalarFunction) {
+                    batchTableEnvironment.registerFunction(k, (ScalarFunction) v);
+                } else if (v instanceof AggregateFunction) {
+                    batchTableEnvironment.registerFunction(k, (AggregateFunction<?, ?>) v);
+                } else if (v instanceof TableFunction) {
+                    batchTableEnvironment.registerFunction(k, (TableFunction<?>) v);
+                } else {
+                    throw new SqlExecutionException("Unsupported function type: " + v.getClass().getName());
+                }
+            });
+        }
+    }
 
-	private void registerView(ViewEntry viewEntry) {
-		try {
-			tableEnv.registerTable(viewEntry.getName(), tableEnv.sqlQuery(viewEntry.getQuery()));
-		} catch (Exception e) {
-			throw new SqlExecutionException(
-				"Invalid view '" + viewEntry.getName() + "' with query:\n" + viewEntry.getQuery()
-					+ "\nCause: " + e.getMessage());
-		}
-	}
+    private void registerView(ViewEntry viewEntry) {
+        try {
+            tableEnv.registerTable(viewEntry.getName(), tableEnv.sqlQuery(viewEntry.getQuery()));
+        } catch (Exception e) {
+            throw new SqlExecutionException(
+                    "Invalid view '" + viewEntry.getName() + "' with query:\n" + viewEntry.getQuery()
+                            + "\nCause: " + e.getMessage());
+        }
+    }
 
-	private void registerTemporalTable(TemporalTableEntry temporalTableEntry) {
-		try {
-			final Table table = tableEnv.scan(temporalTableEntry.getHistoryTable());
-			final TableFunction<?> function = table.createTemporalTableFunction(
-				temporalTableEntry.getTimeAttribute(),
-				String.join(",", temporalTableEntry.getPrimaryKeyFields()));
-			if (tableEnv instanceof StreamTableEnvironment) {
-				StreamTableEnvironment streamTableEnvironment = (StreamTableEnvironment) tableEnv;
-				streamTableEnvironment.registerFunction(temporalTableEntry.getName(), function);
-			} else {
-				BatchTableEnvironment batchTableEnvironment = (BatchTableEnvironment) tableEnv;
-				batchTableEnvironment.registerFunction(temporalTableEntry.getName(), function);
-			}
-		} catch (Exception e) {
-			throw new SqlExecutionException(
-				"Invalid temporal table '" + temporalTableEntry.getName() + "' over table '" +
-					temporalTableEntry.getHistoryTable() + ".\nCause: " + e.getMessage());
-		}
-	}
+    private void registerTemporalTable(TemporalTableEntry temporalTableEntry) {
+        try {
+            final Table table = tableEnv.scan(temporalTableEntry.getHistoryTable());
+            final TableFunction<?> function = table.createTemporalTableFunction(
+                    temporalTableEntry.getTimeAttribute(),
+                    String.join(",", temporalTableEntry.getPrimaryKeyFields()));
+            if (tableEnv instanceof StreamTableEnvironment) {
+                StreamTableEnvironment streamTableEnvironment = (StreamTableEnvironment) tableEnv;
+                streamTableEnvironment.registerFunction(temporalTableEntry.getName(), function);
+            } else {
+                BatchTableEnvironment batchTableEnvironment = (BatchTableEnvironment) tableEnv;
+                batchTableEnvironment.registerFunction(temporalTableEntry.getName(), function);
+            }
+        } catch (Exception e) {
+            throw new SqlExecutionException(
+                    "Invalid temporal table '" + temporalTableEntry.getName() + "' over table '" +
+                            temporalTableEntry.getHistoryTable() + ".\nCause: " + e.getMessage());
+        }
+    }
 
-	//~ Inner Class -------------------------------------------------------------------------------
+    public Executor getExecutor() {
+        return executor;
+    }
 
-	/** Builder for {@link ExecutionContext}. */
-	public static class Builder {
-		// Required members.
-		private final Environment sessionEnv;
-		private final List<URL> dependencies;
-		private final Configuration configuration;
-		private final ClusterClientServiceLoader serviceLoader;
-		private final Options commandLineOptions;
-		private final List<CustomCommandLine> commandLines;
+    public FunctionCatalog getFunctionCatalog() {
+        return functionCatalog;
+    }
 
-		private Environment defaultEnv;
-		private Environment currentEnv;
+    //~ Inner Class -------------------------------------------------------------------------------
 
-		// Optional members.
-		@Nullable
-		private SessionState sessionState;
+    /**
+     * Builder for {@link ExecutionContext}.
+     */
+    public static class Builder {
+        // Required members.
+        private final Environment sessionEnv;
+        private final List<URL> dependencies;
+        private final Configuration configuration;
+        private final ClusterClientServiceLoader serviceLoader;
+        private final Options commandLineOptions;
+        private final List<CustomCommandLine> commandLines;
 
-		private Builder(
-				Environment defaultEnv,
-				@Nullable Environment sessionEnv,
-				List<URL> dependencies,
-				Configuration configuration,
-				ClusterClientServiceLoader serviceLoader,
-				Options commandLineOptions,
-				List<CustomCommandLine> commandLines) {
-			this.defaultEnv = defaultEnv;
-			this.sessionEnv = sessionEnv;
-			this.dependencies = dependencies;
-			this.configuration = configuration;
-			this.serviceLoader = serviceLoader;
-			this.commandLineOptions = commandLineOptions;
-			this.commandLines = commandLines;
-		}
+        private Environment defaultEnv;
+        private Environment currentEnv;
 
-		public Builder env(Environment environment) {
-			this.currentEnv = environment;
-			return this;
-		}
+        // Optional members.
+        @Nullable
+        private SessionState sessionState;
 
-		public Builder sessionState(SessionState sessionState) {
-			this.sessionState = sessionState;
-			return this;
-		}
+        private Builder(
+                Environment defaultEnv,
+                @Nullable Environment sessionEnv,
+                List<URL> dependencies,
+                Configuration configuration,
+                ClusterClientServiceLoader serviceLoader,
+                Options commandLineOptions,
+                List<CustomCommandLine> commandLines) {
+            this.defaultEnv = defaultEnv;
+            this.sessionEnv = sessionEnv;
+            this.dependencies = dependencies;
+            this.configuration = configuration;
+            this.serviceLoader = serviceLoader;
+            this.commandLineOptions = commandLineOptions;
+            this.commandLines = commandLines;
+        }
 
-		public ExecutionContext<?> build() {
-			try {
-				return new ExecutionContext<>(
-					this.currentEnv == null ? Environment.merge(defaultEnv, sessionEnv) : this.currentEnv,
-					this.sessionState,
-					this.dependencies,
-					this.configuration,
-					this.serviceLoader,
-					this.commandLineOptions,
-					this.commandLines);
-			} catch (Throwable t) {
-				// catch everything such that a configuration does not crash the executor
-				throw new SqlExecutionException("Could not create execution context.", t);
-			}
-		}
-	}
+        public Builder env(Environment environment) {
+            this.currentEnv = environment;
+            return this;
+        }
 
-	/** Represents the state that should be reused in one session. **/
-	public static class SessionState {
-		public final CatalogManager catalogManager;
-		public final ModuleManager moduleManager;
-		public final FunctionCatalog functionCatalog;
+        public Builder sessionState(SessionState sessionState) {
+            this.sessionState = sessionState;
+            return this;
+        }
 
-		private SessionState(
-				CatalogManager catalogManager,
-				ModuleManager moduleManager,
-				FunctionCatalog functionCatalog) {
-			this.catalogManager = catalogManager;
-			this.moduleManager = moduleManager;
-			this.functionCatalog = functionCatalog;
-		}
+        public ExecutionContext<?> build() {
+            try {
+                return new ExecutionContext<>(
+                        this.currentEnv == null ? Environment.merge(defaultEnv, sessionEnv) : this.currentEnv,
+                        this.sessionState,
+                        this.dependencies,
+                        this.configuration,
+                        this.serviceLoader,
+                        this.commandLineOptions,
+                        this.commandLines);
+            } catch (Throwable t) {
+                // catch everytt = {CatalogException@6135} "org.apache.flink.table.catalog.exceptions.CatalogException: Failed to create Hive Metastore client"hing such that a configuration does not crash the executor
+                throw new SqlExecutionException("Could not create execution context.", t);
+            }
+        }
+    }
 
-		public static SessionState of(
-				CatalogManager catalogManager,
-				ModuleManager moduleManager,
-				FunctionCatalog functionCatalog) {
-			return new SessionState(catalogManager, moduleManager, functionCatalog);
-		}
-	}
+    /**
+     * Represents the state that should be reused in one session.
+     **/
+    public static class SessionState {
+        public final CatalogManager catalogManager;
+        public final ModuleManager moduleManager;
+        public final FunctionCatalog functionCatalog;
+
+        private SessionState(
+                CatalogManager catalogManager,
+                ModuleManager moduleManager,
+                FunctionCatalog functionCatalog) {
+            this.catalogManager = catalogManager;
+            this.moduleManager = moduleManager;
+            this.functionCatalog = functionCatalog;
+        }
+
+        public static SessionState of(
+                CatalogManager catalogManager,
+                ModuleManager moduleManager,
+                FunctionCatalog functionCatalog) {
+            return new SessionState(catalogManager, moduleManager, functionCatalog);
+        }
+    }
+
+    // todo !!
+    public static void registerUdf(TableEnvironment tableEnv){
+        tableEnv.createTemporarySystemFunction("extractFromJson", JsonUdf.extractFromJson.class);
+        tableEnv.createTemporarySystemFunction("extractFromJsonPath", JsonUdf.extractFromJsonPath.class);
+        tableEnv.createTemporarySystemFunction("debeziumJsonTrans", JsonUdf.debeziumJsonTrans.class);
+        tableEnv.createTemporarySystemFunction("addDbTableToPrimaryKey", JsonUdf.addDbTableToPrimaryKey.class);
+        tableEnv.createTemporarySystemFunction("parseTimeDiff", TimeUdf.parseTimeDiff.class);
+        tableEnv.createTemporarySystemFunction("format_time_function", TimeUdf.format_time_function.class);
+        tableEnv.createTemporarySystemFunction("unixEpochToTimestamp", TimeUdf.unixEpochToTimestamp.class);
+        tableEnv.createTemporarySystemFunction("isTimestampCurrentDay", TimeUdf.isTimestampCurrentDay.class);
+        tableEnv.createTemporarySystemFunction("isTimeDelay", TimeUdf.isTimeDelay.class);
+        tableEnv.createTemporarySystemFunction("formatTimestamp", TimeUdf.formatTimestamp.class);
+        tableEnv.createTemporarySystemFunction("rowToJson", RowUdf.rowToJson.class);
+    }
 }

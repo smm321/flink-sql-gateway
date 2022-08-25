@@ -22,7 +22,6 @@ import com.ververica.flink.table.gateway.GatewayOptions;
 import com.ververica.flink.table.gateway.GatewayOptionsParser;
 import com.ververica.flink.table.gateway.config.Environment;
 import com.ververica.flink.table.gateway.context.DefaultContext;
-
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.DeploymentOptions;
 
@@ -36,52 +35,52 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * Utility class for using java utilities in bash scripts.
  */
 public class BashJavaUtil {
-	private static final String EXECUTION_PREFIX = "BASH_JAVA_UTILS_EXEC_RESULT:";
+    private static final String EXECUTION_PREFIX = "BASH_JAVA_UTILS_EXEC_RESULT:";
 
-	public static void main(String[] args) {
-		checkArgument(args.length > 0, "Command not specified.");
+    public static void main(String[] args) {
+        checkArgument(args.length > 0, "Command not specified.");
 
-		switch (Command.valueOf(args[0])) {
-			case GET_SERVER_JVM_ARGS:
-				getJvmArgs(Arrays.copyOfRange(args, 1, args.length));
-				break;
-			case GET_EXECUTION_TARGET:
-				getExecutionTarget(Arrays.copyOfRange(args, 1, args.length));
-				break;
-			default:
-				// unexpected, Command#valueOf should fail if a unknown command is passed in
-				throw new RuntimeException("Unexpected, something is wrong.");
-		}
-	}
+        switch (Command.valueOf(args[0])) {
+            case GET_SERVER_JVM_ARGS:
+                getJvmArgs(Arrays.copyOfRange(args, 1, args.length));
+                break;
+            case GET_EXECUTION_TARGET:
+                getExecutionTarget(Arrays.copyOfRange(args, 1, args.length));
+                break;
+            default:
+                // unexpected, Command#valueOf should fail if a unknown command is passed in
+                throw new RuntimeException("Unexpected, something is wrong.");
+        }
+    }
 
-	private static void getJvmArgs(String[] args) {
-		GatewayOptions options = GatewayOptionsParser.parseGatewayOptions(args);
-		Environment defaultEnv = readEnvironment(options.getDefaultConfig().orElse(null));
-		String jvmArgs = defaultEnv.getServer().getJvmArgs();
-		System.out.println(EXECUTION_PREFIX + jvmArgs);
-	}
+    private static void getJvmArgs(String[] args) {
+        GatewayOptions options = GatewayOptionsParser.parseGatewayOptions(args);
+        Environment defaultEnv = readEnvironment(options.getDefaultConfig().orElse(null));
+        String jvmArgs = defaultEnv.getServer().getJvmArgs();
+        System.out.println(EXECUTION_PREFIX + jvmArgs);
+    }
 
-	@VisibleForTesting
-	private static void getExecutionTarget(String[] args) {
-		GatewayOptions options = GatewayOptionsParser.parseGatewayOptions(args);
-		Environment defaultEnv = readEnvironment(options.getDefaultConfig().orElse(null));
-		DefaultContext context = new DefaultContext(defaultEnv, Collections.emptyList());
-		String executionTarget = context.getFlinkConfig().getString(DeploymentOptions.TARGET);
-		System.out.println(EXECUTION_PREFIX + executionTarget);
-	}
+    @VisibleForTesting
+    private static void getExecutionTarget(String[] args) {
+        GatewayOptions options = GatewayOptionsParser.parseGatewayOptions(args);
+        Environment defaultEnv = readEnvironment(options.getDefaultConfig().orElse(null));
+        DefaultContext context = new DefaultContext(defaultEnv, Collections.emptyList());
+        String executionTarget = context.getFlinkConfig().getString(DeploymentOptions.TARGET);
+        System.out.println(EXECUTION_PREFIX + executionTarget);
+    }
 
-	/**
-	 * Commands that BashJavaUtil supports.
-	 */
-	public enum Command {
-		/**
-		 * Get server jvm args.
-		 */
-		GET_SERVER_JVM_ARGS,
+    /**
+     * Commands that BashJavaUtil supports.
+     */
+    public enum Command {
+        /**
+         * Get server jvm args.
+         */
+        GET_SERVER_JVM_ARGS,
 
-		/**
-		 * Get execution target in Flink config.
-		 */
-		GET_EXECUTION_TARGET
-	}
+        /**
+         * Get execution target in Flink config.
+         */
+        GET_EXECUTION_TARGET
+    }
 }

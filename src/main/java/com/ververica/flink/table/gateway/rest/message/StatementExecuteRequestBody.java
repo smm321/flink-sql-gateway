@@ -19,7 +19,6 @@
 package com.ververica.flink.table.gateway.rest.message;
 
 import org.apache.flink.runtime.rest.messages.RequestBody;
-
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
@@ -32,33 +31,45 @@ import javax.annotation.Nullable;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class StatementExecuteRequestBody implements RequestBody {
 
-	private static final String FIELD_STATEMENT = "statement";
-	private static final String FIELD_EXECUTION_TIMEOUT = "execution_timeout";
+    private static final String FIELD_STATEMENT = "statement";
+    private static final String FIELD_EXECUTION_TIMEOUT = "execution_timeout";
+    private static final String FIELD_EXECUTION_PARAM = "param";
 
-	@JsonProperty(FIELD_STATEMENT)
-	@Nullable
-	private String statement;
+    @JsonProperty(FIELD_STATEMENT)
+    private String statement;
 
-	@JsonProperty(FIELD_EXECUTION_TIMEOUT)
-	@Nullable
-	private Long executionTimeout;
+    @JsonProperty(FIELD_EXECUTION_TIMEOUT)
+    @Nullable
+    private Long executionTimeout;
 
-	public StatementExecuteRequestBody(
-		@Nullable @JsonProperty(FIELD_STATEMENT) String statement,
-		@Nullable @JsonProperty(FIELD_EXECUTION_TIMEOUT) Long executionTimeout) {
-		this.statement = statement;
-		this.executionTimeout = executionTimeout;
-	}
+    @JsonProperty(FIELD_EXECUTION_PARAM)
+    @Nullable
+    private String param;
 
-	@Nullable
-	@JsonIgnore
-	public String getStatement() {
-		return statement;
-	}
+    public StatementExecuteRequestBody(
+            @Nullable @JsonProperty(FIELD_STATEMENT) String statement,
+            @Nullable @JsonProperty(FIELD_EXECUTION_TIMEOUT) Long executionTimeout,
+            @Nullable @JsonProperty(FIELD_EXECUTION_PARAM) String param
+    ) {
+        this.statement = statement;
+        this.executionTimeout = executionTimeout;
+        this.param = param;
+    }
 
-	@Nullable
-	@JsonIgnore
-	public Long getExecutionTimeout() {
-		return executionTimeout;
-	}
+    @JsonIgnore
+    public String getStatement() {
+        return statement;
+    }
+
+    @Nullable
+    @JsonIgnore
+    public Long getExecutionTimeout() {
+        return executionTimeout;
+    }
+
+    @Nullable
+    @JsonIgnore
+    public String getParam() {
+        return param;
+    }
 }

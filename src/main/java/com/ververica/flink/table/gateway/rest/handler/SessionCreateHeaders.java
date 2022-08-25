@@ -20,64 +20,62 @@ package com.ververica.flink.table.gateway.rest.handler;
 
 import com.ververica.flink.table.gateway.rest.message.SessionCreateRequestBody;
 import com.ververica.flink.table.gateway.rest.message.SessionCreateResponseBody;
-
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
-
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 /**
  * Message headers for creating a session.
  */
 public class SessionCreateHeaders
-	implements MessageHeaders<SessionCreateRequestBody, SessionCreateResponseBody, EmptyMessageParameters> {
+        implements MessageHeaders<SessionCreateRequestBody, SessionCreateResponseBody, EmptyMessageParameters> {
 
-	private static final SessionCreateHeaders INSTANCE = new SessionCreateHeaders();
+    private static final SessionCreateHeaders INSTANCE = new SessionCreateHeaders();
 
-	public static final String URL = "/sessions";
+    public static final String URL = "/sessions";
 
-	private SessionCreateHeaders() {
-	}
+    private SessionCreateHeaders() {
+    }
 
-	@Override
-	public Class<SessionCreateResponseBody> getResponseClass() {
-		return SessionCreateResponseBody.class;
-	}
+    @Override
+    public Class<SessionCreateResponseBody> getResponseClass() {
+        return SessionCreateResponseBody.class;
+    }
 
-	@Override
-	public HttpResponseStatus getResponseStatusCode() {
-		return HttpResponseStatus.OK;
-	}
+    @Override
+    public HttpResponseStatus getResponseStatusCode() {
+        return HttpResponseStatus.OK;
+    }
 
-	@Override
-	public String getDescription() {
-		return "Creates a new session with a specific planner and execution type. " +
-			"Specific properties can be given for current session " +
-			"which will override the default properties of gateway.";
-	}
+    @Override
+    public String getDescription() {
+        return "Creates a new session with a specific planner and execution type. " +
+                "Specific properties can be given for current session " +
+                "which will override the default properties of gateway.";
+    }
 
-	@Override
-	public Class<SessionCreateRequestBody> getRequestClass() {
-		return SessionCreateRequestBody.class;
-	}
+    @Override
+    public Class<SessionCreateRequestBody> getRequestClass() {
+        return SessionCreateRequestBody.class;
+    }
 
-	@Override
-	public EmptyMessageParameters getUnresolvedMessageParameters() {
-		return EmptyMessageParameters.getInstance();
-	}
+    @Override
+    public EmptyMessageParameters getUnresolvedMessageParameters() {
+        return EmptyMessageParameters.getInstance();
+    }
 
-	@Override
-	public HttpMethodWrapper getHttpMethod() {
-		return HttpMethodWrapper.POST;
-	}
+    @Override
+    public HttpMethodWrapper getHttpMethod() {
+        return HttpMethodWrapper.POST;
+    }
 
-	@Override
-	public String getTargetRestEndpointURL() {
-		return URL;
-	}
+    @Override
+    public String getTargetRestEndpointURL() {
+        return URL;
+    }
 
-	public static SessionCreateHeaders getInstance() {
-		return INSTANCE;
-	}
+    public static SessionCreateHeaders getInstance() {
+        return INSTANCE;
+    }
 }

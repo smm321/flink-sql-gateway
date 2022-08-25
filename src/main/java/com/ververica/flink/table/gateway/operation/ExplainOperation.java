@@ -35,42 +35,42 @@ import org.apache.flink.types.Row;
  * Operation for EXPLAIN command.
  */
 public class ExplainOperation implements NonJobOperation {
-	private final ExecutionContext<?> context;
-	private final String statement;
+    private final ExecutionContext<?> context;
+    private final String statement;
 
-	public ExplainOperation(SessionContext context, String statement) {
-		this.context = context.getExecutionContext();
-		this.statement = statement;
-	}
+    public ExplainOperation(SessionContext context, String statement) {
+        this.context = context.getExecutionContext();
+        this.statement = statement;
+    }
 
-	@Override
-	public ResultSet execute() {
-		final TableEnvironment tableEnv = context.getTableEnvironment();
-		// translate
-		try {
-			final Table table = createTable(context, tableEnv, statement);
-			String explanation = context.wrapClassLoader(() -> tableEnv.explain(table));
-			return ResultSet.builder()
-				.resultKind(ResultKind.SUCCESS_WITH_CONTENT)
-				.columns(ColumnInfo.create(ConstantNames.EXPLAIN_RESULT, new VarCharType(false, explanation.length())))
-				.data(Row.of(explanation))
-				.build();
-		} catch (Throwable t) {
-			// catch everything such that the query does not crash the executor
-			throw new SqlExecutionException("Invalid SQL statement.", t);
-		}
-	}
+    @Override
+    public ResultSet execute() {
+        final TableEnvironment tableEnv = context.getTableEnvironment();
+        // translate
+        try {
+            final Table table = createTable(context, tableEnv, statement);
+            String explanation = context.wrapClassLoader(() -> tableEnv.explain(table));
+            return ResultSet.builder()
+                    .resultKind(ResultKind.SUCCESS_WITH_CONTENT)
+                    .columns(ColumnInfo.create(ConstantNames.EXPLAIN_RESULT, new VarCharType(false, explanation.length())))
+                    .data(Row.of(explanation))
+                    .build();
+        } catch (Throwable t) {
+            // catch everything such that the query does not crash the executor
+            throw new SqlExecutionException("Invalid SQL statement.", t);
+        }
+    }
 
-	/**
-	 * Creates a table using the given query in the given table environment.
-	 */
-	private <C> Table createTable(ExecutionContext<C> context, TableEnvironment tableEnv, String selectQuery) {
-		// parse and validate query
-		try {
-			return context.wrapClassLoader(() -> tableEnv.sqlQuery(selectQuery));
-		} catch (Throwable t) {
-			// catch everything such that the query does not crash the executor
-			throw new SqlExecutionException("Invalid SQL statement.", t);
-		}
-	}
+    /**
+     * Creates a table using the given query in the given table environment.
+     */
+    private <C> Table createTable(ExecutionContext<C> context, TableEnvironment tableEnv, String selectQuery) {
+        // parse and validate query
+        try {
+            return context.wrapClassLoader(() -> tableEnv.sqlQuery(selectQuery));
+        } catch (Throwable t) {
+            // catch everything such that the query does not crash the executor
+            throw new SqlExecutionException("Invalid SQL statement.", t);
+        }
+    }
 }

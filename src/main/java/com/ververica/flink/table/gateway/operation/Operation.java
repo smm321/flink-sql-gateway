@@ -26,8 +26,8 @@ import com.ververica.flink.table.gateway.rest.result.ResultSet;
  */
 public interface Operation {
 
-	/**
-	 * Execute the command and return the result.
-	 */
-	ResultSet execute();
+    /**
+     * Execute the command and return the result.
+     */
+    ResultSet execute();
 }

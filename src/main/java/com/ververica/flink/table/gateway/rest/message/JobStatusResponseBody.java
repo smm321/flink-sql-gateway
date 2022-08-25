@@ -19,7 +19,6 @@
 package com.ververica.flink.table.gateway.rest.message;
 
 import org.apache.flink.runtime.rest.messages.ResponseBody;
-
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -29,17 +28,17 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class JobStatusResponseBody implements ResponseBody {
 
-	private static final String FIELD_NAME_STATUS = "status";
+    private static final String FIELD_NAME_STATUS = "status";
 
-	@JsonProperty(FIELD_NAME_STATUS)
-	private String status;
+    @JsonProperty(FIELD_NAME_STATUS)
+    private String status;
 
-	public JobStatusResponseBody(@JsonProperty(FIELD_NAME_STATUS) String status) {
-		this.status = status;
-	}
+    public JobStatusResponseBody(@JsonProperty(FIELD_NAME_STATUS) String status) {
+        this.status = status;
+    }
 
-	public String getStatus() {
-		return status;
-	}
+    public String getStatus() {
+        return status;
+    }
 
 }
