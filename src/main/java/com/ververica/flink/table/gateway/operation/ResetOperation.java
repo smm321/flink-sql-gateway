@@ -26,24 +26,24 @@ import com.ververica.flink.table.gateway.rest.result.ResultSet;
  * Operation for RESET command.
  */
 public class ResetOperation implements NonJobOperation {
-	private final SessionContext context;
+    private final SessionContext context;
 
-	public ResetOperation(SessionContext context) {
-		this.context = context;
-	}
+    public ResetOperation(SessionContext context) {
+        this.context = context;
+    }
 
-	@Override
-	public ResultSet execute() {
-		ExecutionContext<?> executionContext = context.getExecutionContext();
-		// Renew the ExecutionContext by merging the default environment with original session context.
-		// Book keep all the session states of current ExecutionContext then
-		// re-register them into the new one.
-		ExecutionContext<?> newExecutionContext = context
-			.createExecutionContextBuilder(context.getOriginalSessionEnv())
-			.sessionState(executionContext.getSessionState())
-			.build();
-		context.setExecutionContext(newExecutionContext);
+    @Override
+    public ResultSet execute() {
+        ExecutionContext<?> executionContext = context.getExecutionContext();
+        // Renew the ExecutionContext by merging the default environment with original session context.
+        // Book keep all the session states of current ExecutionContext then
+        // re-register them into the new one.
+        ExecutionContext<?> newExecutionContext = context
+                .createExecutionContextBuilder(context.getOriginalSessionEnv())
+                .sessionState(executionContext.getSessionState())
+                .build();
+        context.setExecutionContext(newExecutionContext);
 
-		return OperationUtil.OK;
-	}
+        return OperationUtil.OK;
+    }
 }

@@ -19,7 +19,6 @@
 package com.ververica.flink.table.gateway.config.entries;
 
 import com.ververica.flink.table.gateway.config.ConfigUtil;
-
 import org.apache.flink.table.descriptors.DescriptorProperties;
 
 import java.util.HashMap;
@@ -33,67 +32,67 @@ import static com.ververica.flink.table.gateway.config.Environment.SERVER_ENTRY;
  */
 public class ServerEntry extends ConfigEntry {
 
-	public static final ServerEntry DEFAULT_INSTANCE = new ServerEntry(new DescriptorProperties(true));
+    public static final ServerEntry DEFAULT_INSTANCE = new ServerEntry(new DescriptorProperties(true));
 
-	private static final String DEFAULT_ADDRESS = "127.0.0.1";
+    private static final String DEFAULT_ADDRESS = "127.0.0.1";
 
-	private static final int DEFAULT_PORT = 8083;
+    private static final int DEFAULT_PORT = 8083;
 
-	private static final String GATEWAY_BIND_ADDRESS = "bind-address";
+    private static final String GATEWAY_BIND_ADDRESS = "bind-address";
 
-	private static final String GATEWAY_ADDRESS = "address";
+    private static final String GATEWAY_ADDRESS = "address";
 
-	private static final String GATEWAY_PORT = "port";
+    private static final String GATEWAY_PORT = "port";
 
-	private static final String JVM_ARGS = "jvm_args";
+    private static final String JVM_ARGS = "jvm_args";
 
-	private ServerEntry(DescriptorProperties properties) {
-		super(properties);
-	}
+    private ServerEntry(DescriptorProperties properties) {
+        super(properties);
+    }
 
-	@Override
-	protected void validate(DescriptorProperties properties) {
-		properties.validateString(GATEWAY_BIND_ADDRESS, true);
-		properties.validateString(GATEWAY_ADDRESS, true);
-		properties.validateInt(GATEWAY_PORT, true, 1024, 65535);
-		properties.validateString(JVM_ARGS, true);
-	}
+    @Override
+    protected void validate(DescriptorProperties properties) {
+        properties.validateString(GATEWAY_BIND_ADDRESS, true);
+        properties.validateString(GATEWAY_ADDRESS, true);
+        properties.validateInt(GATEWAY_PORT, true, 1024, 65535);
+        properties.validateString(JVM_ARGS, true);
+    }
 
-	public static ServerEntry create(Map<String, Object> config) {
-		return new ServerEntry(ConfigUtil.normalizeYaml(config));
-	}
+    public static ServerEntry create(Map<String, Object> config) {
+        return new ServerEntry(ConfigUtil.normalizeYaml(config));
+    }
 
-	public Map<String, String> asTopLevelMap() {
-		return properties.asPrefixedMap(SERVER_ENTRY + '.');
-	}
+    public Map<String, String> asTopLevelMap() {
+        return properties.asPrefixedMap(SERVER_ENTRY + '.');
+    }
 
-	/**
-	 * Merges two session entries. The properties of the first execution entry might be
-	 * overwritten by the second one.
-	 */
-	public static ServerEntry merge(ServerEntry gateway1, ServerEntry gateway2) {
-		final Map<String, String> mergedProperties = new HashMap<>(gateway1.asTopLevelMap());
-		mergedProperties.putAll(gateway2.asTopLevelMap());
+    /**
+     * Merges two session entries. The properties of the first execution entry might be
+     * overwritten by the second one.
+     */
+    public static ServerEntry merge(ServerEntry gateway1, ServerEntry gateway2) {
+        final Map<String, String> mergedProperties = new HashMap<>(gateway1.asTopLevelMap());
+        mergedProperties.putAll(gateway2.asTopLevelMap());
 
-		final DescriptorProperties properties = new DescriptorProperties(true);
-		properties.putProperties(mergedProperties);
+        final DescriptorProperties properties = new DescriptorProperties(true);
+        properties.putProperties(mergedProperties);
 
-		return new ServerEntry(properties);
-	}
+        return new ServerEntry(properties);
+    }
 
-	public Optional<String> getBindAddress() {
-		return properties.getOptionalString(GATEWAY_BIND_ADDRESS);
-	}
+    public Optional<String> getBindAddress() {
+        return properties.getOptionalString(GATEWAY_BIND_ADDRESS);
+    }
 
-	public String getAddress() {
-		return properties.getOptionalString(GATEWAY_ADDRESS).orElse(DEFAULT_ADDRESS);
-	}
+    public String getAddress() {
+        return properties.getOptionalString(GATEWAY_ADDRESS).orElse(DEFAULT_ADDRESS);
+    }
 
-	public int getPort() {
-		return properties.getOptionalInt(GATEWAY_PORT).orElse(DEFAULT_PORT);
-	}
+    public int getPort() {
+        return properties.getOptionalInt(GATEWAY_PORT).orElse(DEFAULT_PORT);
+    }
 
-	public String getJvmArgs() {
-		return properties.getOptionalString(JVM_ARGS).orElse("");
-	}
+    public String getJvmArgs() {
+        return properties.getOptionalString(JVM_ARGS).orElse("");
+    }
 }

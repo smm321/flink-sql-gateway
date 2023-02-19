@@ -46,6 +46,9 @@ public class OperationFactory {
 			case CREATE_DATABASE:
 			case DROP_DATABASE:
 			case ALTER_DATABASE:
+			case CREATE_FUNCTION:
+			case ALTER_FUNCTION:
+			case DROP_FUNCTION:
 				operation = new DDLOperation(context, call.operands[0], call.command);
 				break;
 			case SET:
@@ -102,6 +105,18 @@ public class OperationFactory {
 				break;
 			case EXPLAIN:
 				operation = new ExplainOperation(context, call.operands[0]);
+				break;
+			case SHOW_CREATE_TABLE:
+				operation = new ShowCreateTableOperation(context, call.operands[0]);
+				break;
+			case STATEMENT_SET:
+				operation = new StatementSetOperation(context, call.operands[0], call.operands[1]);
+				break;
+			case VALIDATE:
+				operation = new ValidateStatementSetOperation(context, call.operands[0], call.operands[1]);
+				break;
+			case LINEAGE:
+				operation = new ParseLineageOperation(context, call.operands[0], call.operands[1]);
 				break;
 			default:
 				throw new SqlGatewayException("Unsupported command call " + call + ". This is a bug.");

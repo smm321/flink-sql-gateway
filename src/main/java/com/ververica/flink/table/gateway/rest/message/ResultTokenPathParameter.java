@@ -26,28 +26,28 @@ import org.apache.flink.runtime.rest.messages.MessagePathParameter;
  */
 public class ResultTokenPathParameter extends MessagePathParameter<Long> {
 
-	public static final String KEY = "token";
+    public static final String KEY = "token";
 
-	public ResultTokenPathParameter() {
-		super(KEY);
-	}
+    public ResultTokenPathParameter() {
+        super(KEY);
+    }
 
-	@Override
-	protected Long convertFromString(String value) throws ConversionException {
-		try {
-			return Long.valueOf(value);
-		} catch (NumberFormatException e) {
-			throw new ConversionException("Invalid token " + value + ". Token must be a long value.");
-		}
-	}
+    @Override
+    protected Long convertFromString(String value) throws ConversionException {
+        try {
+            return Long.valueOf(value);
+        } catch (NumberFormatException e) {
+            throw new ConversionException("Invalid token " + value + ". Token must be a long value.");
+        }
+    }
 
-	@Override
-	protected String convertToString(Long value) {
-		return value.toString();
-	}
+    @Override
+    protected String convertToString(Long value) {
+        return value.toString();
+    }
 
-	@Override
-	public String getDescription() {
-		return "A Long that identifies a toke to fetch job result.";
-	}
+    @Override
+    public String getDescription() {
+        return "A Long that identifies a toke to fetch job result.";
+    }
 }

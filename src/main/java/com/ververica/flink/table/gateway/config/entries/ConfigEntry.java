@@ -19,7 +19,6 @@
 package com.ververica.flink.table.gateway.config.entries;
 
 import com.ververica.flink.table.gateway.utils.SqlGatewayException;
-
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 
@@ -33,41 +32,41 @@ import java.util.Objects;
  */
 abstract class ConfigEntry {
 
-	protected final DescriptorProperties properties;
+    protected final DescriptorProperties properties;
 
-	protected ConfigEntry(DescriptorProperties properties) {
-		try {
-			validate(properties);
-		} catch (ValidationException e) {
-			throw new SqlGatewayException("Invalid configuration entry.", e);
-		}
+    protected ConfigEntry(DescriptorProperties properties) {
+        try {
+            validate(properties);
+        } catch (ValidationException e) {
+            throw new SqlGatewayException("Invalid configuration entry.", e);
+        }
 
-		this.properties = properties;
-	}
+        this.properties = properties;
+    }
 
-	/**
-	 * Performs syntactic validation.
-	 */
-	protected abstract void validate(DescriptorProperties properties);
+    /**
+     * Performs syntactic validation.
+     */
+    protected abstract void validate(DescriptorProperties properties);
 
-	public Map<String, String> asMap() {
-		return properties.asMap();
-	}
+    public Map<String, String> asMap() {
+        return properties.asMap();
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		ConfigEntry that = (ConfigEntry) o;
-		return Objects.equals(properties, that.properties);
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        ConfigEntry that = (ConfigEntry) o;
+        return Objects.equals(properties, that.properties);
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(properties);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(properties);
+    }
 }

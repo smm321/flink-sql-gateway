@@ -25,12 +25,12 @@ import org.apache.flink.table.descriptors.DescriptorProperties;
  */
 public class SourceTableEntry extends TableEntry {
 
-	SourceTableEntry(String name, DescriptorProperties properties) {
-		super(name, properties);
-	}
+    SourceTableEntry(String name, DescriptorProperties properties) {
+        super(name, properties);
+    }
 
-	@Override
-	protected void validate(DescriptorProperties properties) {
-		// validation is performed by the discovered factory
-	}
+    @Override
+    protected void validate(DescriptorProperties properties) {
+        // validation is performed by the discovered factory
+    }
 }

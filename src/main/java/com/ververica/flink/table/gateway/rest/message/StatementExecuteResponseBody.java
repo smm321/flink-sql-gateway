@@ -19,9 +19,7 @@
 package com.ververica.flink.table.gateway.rest.message;
 
 import com.ververica.flink.table.gateway.rest.result.ResultSet;
-
 import org.apache.flink.runtime.rest.messages.ResponseBody;
-
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -33,28 +31,28 @@ import java.util.List;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class StatementExecuteResponseBody implements ResponseBody {
 
-	private static final String FIELD_NAME_RESULT = "results";
-	private static final String FIELD_NAME_STATEMENT_TYPE = "statement_types";
+    private static final String FIELD_NAME_RESULT = "results";
+    private static final String FIELD_NAME_STATEMENT_TYPE = "statement_types";
 
-	@JsonProperty(FIELD_NAME_RESULT)
-	private final List<ResultSet> results;
+    @JsonProperty(FIELD_NAME_RESULT)
+    private final List<ResultSet> results;
 
-	@JsonProperty(FIELD_NAME_STATEMENT_TYPE)
-	private final List<String> statementTypes;
+    @JsonProperty(FIELD_NAME_STATEMENT_TYPE)
+    private final List<String> statementTypes;
 
-	public StatementExecuteResponseBody(
-		@JsonProperty(FIELD_NAME_RESULT) List<ResultSet> results,
-		@JsonProperty(FIELD_NAME_STATEMENT_TYPE) List<String> statementTypes) {
-		this.results = results;
-		this.statementTypes = statementTypes;
-	}
+    public StatementExecuteResponseBody(
+            @JsonProperty(FIELD_NAME_RESULT) List<ResultSet> results,
+            @JsonProperty(FIELD_NAME_STATEMENT_TYPE) List<String> statementTypes) {
+        this.results = results;
+        this.statementTypes = statementTypes;
+    }
 
-	public List<ResultSet> getResults() {
-		return results;
-	}
+    public List<ResultSet> getResults() {
+        return results;
+    }
 
-	public List<String> getStatementTypes() {
-		return statementTypes;
-	}
+    public List<String> getStatementTypes() {
+        return statementTypes;
+    }
 
 }

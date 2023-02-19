@@ -32,27 +32,27 @@ import java.util.Collections;
  */
 public class ResultFetchMessageParameters extends MessageParameters {
 
-	private final SessionIdPathParameter sessionIdPathParameter = new SessionIdPathParameter();
-	private final JobIdPathParameter jobIdPathParameter = new JobIdPathParameter();
-	private final ResultTokenPathParameter resultTokenPathParameter = new ResultTokenPathParameter();
+    private final SessionIdPathParameter sessionIdPathParameter = new SessionIdPathParameter();
+    private final JobIdPathParameter jobIdPathParameter = new JobIdPathParameter();
+    private final ResultTokenPathParameter resultTokenPathParameter = new ResultTokenPathParameter();
 
-	public ResultFetchMessageParameters() {
-		// nothing to resolve
-	}
+    public ResultFetchMessageParameters() {
+        // nothing to resolve
+    }
 
-	public ResultFetchMessageParameters(String sessionId, JobID jobId, long token) {
-		sessionIdPathParameter.resolve(sessionId);
-		jobIdPathParameter.resolve(jobId);
-		resultTokenPathParameter.resolve(token);
-	}
+    public ResultFetchMessageParameters(String sessionId, JobID jobId, long token) {
+        sessionIdPathParameter.resolve(sessionId);
+        jobIdPathParameter.resolve(jobId);
+        resultTokenPathParameter.resolve(token);
+    }
 
-	@Override
-	public Collection<MessagePathParameter<?>> getPathParameters() {
-		return Arrays.asList(sessionIdPathParameter, jobIdPathParameter, resultTokenPathParameter);
-	}
+    @Override
+    public Collection<MessagePathParameter<?>> getPathParameters() {
+        return Arrays.asList(sessionIdPathParameter, jobIdPathParameter, resultTokenPathParameter);
+    }
 
-	@Override
-	public Collection<MessageQueryParameter<?>> getQueryParameters() {
-		return Collections.emptyList();
-	}
+    @Override
+    public Collection<MessageQueryParameter<?>> getQueryParameters() {
+        return Collections.emptyList();
+    }
 }

@@ -19,7 +19,6 @@
 package com.ververica.flink.table.gateway.config.entries;
 
 import com.ververica.flink.table.gateway.config.ConfigUtil;
-
 import org.apache.flink.table.descriptors.DescriptorProperties;
 
 import java.util.Collections;
@@ -32,38 +31,38 @@ import static org.apache.flink.table.descriptors.ModuleDescriptorValidator.MODUL
  */
 public class ModuleEntry extends ConfigEntry {
 
-	public static final String MODULE_NAME = "name";
+    public static final String MODULE_NAME = "name";
 
-	private final String name;
+    private final String name;
 
-	protected ModuleEntry(String name, DescriptorProperties properties) {
-		super(properties);
-		this.name = name;
-	}
+    protected ModuleEntry(String name, DescriptorProperties properties) {
+        super(properties);
+        this.name = name;
+    }
 
-	public String getName() {
-		return name;
-	}
+    public String getName() {
+        return name;
+    }
 
-	@Override
-	protected void validate(DescriptorProperties properties) {
-		properties.validateString(MODULE_TYPE, false, 1);
+    @Override
+    protected void validate(DescriptorProperties properties) {
+        properties.validateString(MODULE_TYPE, false, 1);
 
-		// further validation is performed by the discovered factory
-	}
+        // further validation is performed by the discovered factory
+    }
 
-	public static ModuleEntry create(Map<String, Object> config) {
-		return create(ConfigUtil.normalizeYaml(config));
-	}
+    public static ModuleEntry create(Map<String, Object> config) {
+        return create(ConfigUtil.normalizeYaml(config));
+    }
 
-	private static ModuleEntry create(DescriptorProperties properties) {
-		properties.validateString(MODULE_NAME, false, 1);
+    private static ModuleEntry create(DescriptorProperties properties) {
+        properties.validateString(MODULE_NAME, false, 1);
 
-		final String name = properties.getString(MODULE_NAME);
+        final String name = properties.getString(MODULE_NAME);
 
-		final DescriptorProperties cleanedProperties =
-			properties.withoutKeys(Collections.singletonList(MODULE_NAME));
+        final DescriptorProperties cleanedProperties =
+                properties.withoutKeys(Collections.singletonList(MODULE_NAME));
 
-		return new ModuleEntry(name, cleanedProperties);
-	}
+        return new ModuleEntry(name, cleanedProperties);
+    }
 }

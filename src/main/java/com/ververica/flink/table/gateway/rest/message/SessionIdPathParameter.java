@@ -19,7 +19,6 @@
 package com.ververica.flink.table.gateway.rest.message;
 
 import com.ververica.flink.table.gateway.rest.session.SessionID;
-
 import org.apache.flink.runtime.rest.messages.ConversionException;
 import org.apache.flink.runtime.rest.messages.MessagePathParameter;
 
@@ -28,30 +27,30 @@ import org.apache.flink.runtime.rest.messages.MessagePathParameter;
  */
 public class SessionIdPathParameter extends MessagePathParameter<String> {
 
-	public static final String KEY = "session_id";
+    public static final String KEY = "session_id";
 
-	public SessionIdPathParameter() {
-		super(KEY);
-	}
+    public SessionIdPathParameter() {
+        super(KEY);
+    }
 
-	@Override
-	protected String convertFromString(String value) throws ConversionException {
-		try {
-			SessionID.fromHexString(value);
-			// TODO return SessionID
-			return value;
-		} catch (IllegalArgumentException iae) {
-			throw new ConversionException("Not a valid session ID: " + value, iae);
-		}
-	}
+    @Override
+    protected String convertFromString(String value) throws ConversionException {
+        try {
+            SessionID.fromHexString(value);
+            // TODO return SessionID
+            return value;
+        } catch (IllegalArgumentException iae) {
+            throw new ConversionException("Not a valid session ID: " + value, iae);
+        }
+    }
 
-	@Override
-	protected String convertToString(String value) {
-		return value;
-	}
+    @Override
+    protected String convertToString(String value) {
+        return value;
+    }
 
-	@Override
-	public String getDescription() {
-		return "A string that identifies a session.";
-	}
+    @Override
+    public String getDescription() {
+        return "A string that identifies a session.";
+    }
 }

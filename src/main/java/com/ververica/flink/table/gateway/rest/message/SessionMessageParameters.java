@@ -30,23 +30,23 @@ import java.util.Collections;
  */
 public class SessionMessageParameters extends MessageParameters {
 
-	private final SessionIdPathParameter sessionIDPathParameter = new SessionIdPathParameter();
+    private final SessionIdPathParameter sessionIDPathParameter = new SessionIdPathParameter();
 
-	public SessionMessageParameters() {
-		// nothing to resolve
-	}
+    public SessionMessageParameters() {
+        // nothing to resolve
+    }
 
-	public SessionMessageParameters(String sessionId) {
-		sessionIDPathParameter.resolve(sessionId);
-	}
+    public SessionMessageParameters(String sessionId) {
+        sessionIDPathParameter.resolve(sessionId);
+    }
 
-	@Override
-	public Collection<MessagePathParameter<?>> getPathParameters() {
-		return Collections.singletonList(sessionIDPathParameter);
-	}
+    @Override
+    public Collection<MessagePathParameter<?>> getPathParameters() {
+        return Collections.singletonList(sessionIDPathParameter);
+    }
 
-	@Override
-	public Collection<MessageQueryParameter<?>> getQueryParameters() {
-		return Collections.emptyList();
-	}
+    @Override
+    public Collection<MessageQueryParameter<?>> getQueryParameters() {
+        return Collections.emptyList();
+    }
 }

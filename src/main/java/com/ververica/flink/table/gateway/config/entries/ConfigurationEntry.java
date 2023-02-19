@@ -19,7 +19,6 @@
 package com.ververica.flink.table.gateway.config.entries;
 
 import com.ververica.flink.table.gateway.config.ConfigUtil;
-
 import org.apache.flink.table.descriptors.DescriptorProperties;
 
 import java.util.HashMap;
@@ -32,51 +31,51 @@ import static com.ververica.flink.table.gateway.config.Environment.CONFIGURATION
  */
 public class ConfigurationEntry extends ConfigEntry {
 
-	public static final ConfigurationEntry DEFAULT_INSTANCE =
-		new ConfigurationEntry(new DescriptorProperties(true));
+    public static final ConfigurationEntry DEFAULT_INSTANCE =
+            new ConfigurationEntry(new DescriptorProperties(true));
 
-	private ConfigurationEntry(DescriptorProperties properties) {
-		super(properties);
-	}
+    private ConfigurationEntry(DescriptorProperties properties) {
+        super(properties);
+    }
 
-	@Override
-	protected void validate(DescriptorProperties properties) {
-		// Nothing to validate as the planner will check the options
-	}
+    @Override
+    protected void validate(DescriptorProperties properties) {
+        // Nothing to validate as the planner will check the options
+    }
 
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
-	public static ConfigurationEntry create(Map<String, Object> config) {
-		return new ConfigurationEntry(ConfigUtil.normalizeYaml(config));
-	}
+    public static ConfigurationEntry create(Map<String, Object> config) {
+        return new ConfigurationEntry(ConfigUtil.normalizeYaml(config));
+    }
 
-	/**
-	 * Merges two configuration entries. The properties of the first configuration entry might be
-	 * overwritten by the second one.
-	 */
-	public static ConfigurationEntry merge(ConfigurationEntry configuration1, ConfigurationEntry configuration2) {
-		final Map<String, String> mergedProperties = new HashMap<>(configuration1.asMap());
-		mergedProperties.putAll(configuration2.asMap());
+    /**
+     * Merges two configuration entries. The properties of the first configuration entry might be
+     * overwritten by the second one.
+     */
+    public static ConfigurationEntry merge(ConfigurationEntry configuration1, ConfigurationEntry configuration2) {
+        final Map<String, String> mergedProperties = new HashMap<>(configuration1.asMap());
+        mergedProperties.putAll(configuration2.asMap());
 
-		final DescriptorProperties properties = new DescriptorProperties(true);
-		properties.putProperties(mergedProperties);
+        final DescriptorProperties properties = new DescriptorProperties(true);
+        properties.putProperties(mergedProperties);
 
-		return new ConfigurationEntry(properties);
-	}
+        return new ConfigurationEntry(properties);
+    }
 
-	public static ConfigurationEntry enrich(ConfigurationEntry configuration, Map<String, String> prefixedProperties) {
-		final Map<String, String> enrichedProperties = new HashMap<>(configuration.asMap());
+    public static ConfigurationEntry enrich(ConfigurationEntry configuration, Map<String, String> prefixedProperties) {
+        final Map<String, String> enrichedProperties = new HashMap<>(configuration.asMap());
 
-		prefixedProperties.forEach((k, v) -> {
-			final String normalizedKey = k.toLowerCase();
-			if (k.startsWith(CONFIGURATION_ENTRY + ".")) {
-				enrichedProperties.put(normalizedKey, v);
-			}
-		});
+        prefixedProperties.forEach((k, v) -> {
+            final String normalizedKey = k.toLowerCase();
+            if (k.startsWith(CONFIGURATION_ENTRY + ".")) {
+                enrichedProperties.put(normalizedKey, v);
+            }
+        });
 
-		final DescriptorProperties properties = new DescriptorProperties(true);
-		properties.putProperties(enrichedProperties);
+        final DescriptorProperties properties = new DescriptorProperties(true);
+        properties.putProperties(enrichedProperties);
 
-		return new ConfigurationEntry(properties);
-	}
+        return new ConfigurationEntry(properties);
+    }
 }
