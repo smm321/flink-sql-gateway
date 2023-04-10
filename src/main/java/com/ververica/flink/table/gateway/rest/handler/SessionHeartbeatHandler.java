@@ -58,7 +58,7 @@ public class SessionHeartbeatHandler
 
     @Override
     protected CompletableFuture<EmptyResponseBody> handleRequest(
-            @Nonnull HandlerRequest<EmptyRequestBody, SessionMessageParameters> request) throws RestHandlerException {
+            @Nonnull HandlerRequest<EmptyRequestBody> request) throws RestHandlerException {
 
         String sessionId = request.getPathParameter(SessionIdPathParameter.class);
         try {

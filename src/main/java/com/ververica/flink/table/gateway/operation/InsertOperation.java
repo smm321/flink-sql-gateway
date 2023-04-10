@@ -29,11 +29,16 @@ import com.ververica.flink.table.gateway.rest.result.ResultSet;
 import com.ververica.flink.table.gateway.utils.SqlExecutionException;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.dag.Pipeline;
+import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.bridge.java.internal.StreamTableEnvironmentImpl;
+import org.apache.flink.table.operations.ModifyOperation;
+import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.types.Row;
@@ -41,6 +46,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.sql.Statement;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -117,21 +123,25 @@ public class InsertOperation extends AbstractJobOperation {
     }
 
     private <C> JobID executeUpdateInternal(ExecutionContext<C> executionContext) {
-        TableEnvironment tableEnv = executionContext.getTableEnvironment();
-        // parse and validate statement
-        try {
-            executionContext.wrapClassLoader(() -> {
-                tableEnv.sqlUpdate(statement);
-                return null;
-            });
-        } catch (Throwable t) {
-            LOG.error(String.format("Session: %s. Invalid SQL query.", sessionId), t);
-            // catch everything such that the statement does not crash the executor
-            throw new SqlExecutionException("Invalid SQL update statement.", t);
+
+        if (!INSERT_SQL_PATTERN.matcher(statement.trim()).matches()) {
+            LOG.error("Session: {}. Only insert is supported now.", sessionId);
+            throw new SqlExecutionException("Only insert is supported now");
         }
 
-        //Todo: we should refactor following condition after TableEnvironment has support submit job directly.
-        if (!INSERT_SQL_PATTERN.matcher(statement.trim()).matches()) {
+        StreamTableEnvironmentImpl streamTableEnvironmentImpl = executionContext.getStreamTableEnvironmentImpl();
+        final List<Transformation<?>> transformations;
+        List<Operation> operations = streamTableEnvironmentImpl.getPlanner().getParser().parse(statement);
+        if (operations.size() != 1) {
+            throw new TableException("Only insert is supported now");
+        }
+
+        Operation operation = operations.get(0);
+        if (operation instanceof ModifyOperation) {
+            List<ModifyOperation> list = new ArrayList<>();
+            list.add((ModifyOperation) operation);
+            transformations = streamTableEnvironmentImpl.getPlanner().translate(list);
+        } else {
             LOG.error("Session: {}. Only insert is supported now.", sessionId);
             throw new SqlExecutionException("Only insert is supported now");
         }
@@ -140,7 +150,7 @@ public class InsertOperation extends AbstractJobOperation {
         // create job graph with dependencies
         final Pipeline pipeline;
         try {
-            pipeline = executionContext.wrapClassLoader(() -> executionContext.createPipeline(jobName));
+            pipeline = executionContext.wrapClassLoader(() -> executionContext.createPipeline(jobName, transformations));
         } catch (Throwable t) {
             LOG.error(String.format("Session: %s. Invalid SQL query.", sessionId), t);
             // catch everything such that the statement does not crash the executor

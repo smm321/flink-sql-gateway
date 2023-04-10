@@ -19,7 +19,7 @@
 package com.ververica.flink.table.gateway.config.entries;
 
 import com.ververica.flink.table.gateway.config.ConfigUtil;
-import org.apache.flink.table.descriptors.DescriptorProperties;
+import org.apache.flink.configuration.Configuration;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -32,14 +32,14 @@ import static com.ververica.flink.table.gateway.config.Environment.CONFIGURATION
 public class ConfigurationEntry extends ConfigEntry {
 
     public static final ConfigurationEntry DEFAULT_INSTANCE =
-            new ConfigurationEntry(new DescriptorProperties(true));
+            new ConfigurationEntry(new Configuration());
 
-    private ConfigurationEntry(DescriptorProperties properties) {
+    private ConfigurationEntry(Configuration properties) {
         super(properties);
     }
 
     @Override
-    protected void validate(DescriptorProperties properties) {
+    protected void validate(Configuration properties) {
         // Nothing to validate as the planner will check the options
     }
 
@@ -57,10 +57,12 @@ public class ConfigurationEntry extends ConfigEntry {
         final Map<String, String> mergedProperties = new HashMap<>(configuration1.asMap());
         mergedProperties.putAll(configuration2.asMap());
 
-        final DescriptorProperties properties = new DescriptorProperties(true);
-        properties.putProperties(mergedProperties);
+        final Configuration configuration = new Configuration();
+        mergedProperties.forEach((k, v) -> {
+            configuration.setString(k, v);
+        });
 
-        return new ConfigurationEntry(properties);
+        return new ConfigurationEntry(configuration);
     }
 
     public static ConfigurationEntry enrich(ConfigurationEntry configuration, Map<String, String> prefixedProperties) {
@@ -73,9 +75,11 @@ public class ConfigurationEntry extends ConfigEntry {
             }
         });
 
-        final DescriptorProperties properties = new DescriptorProperties(true);
-        properties.putProperties(enrichedProperties);
+        final Configuration enrichConfiguration = new Configuration();
+        enrichedProperties.forEach((k, v) -> {
+            enrichConfiguration.setString(k, v);
+        });
 
-        return new ConfigurationEntry(properties);
+        return new ConfigurationEntry(enrichConfiguration);
     }
 }

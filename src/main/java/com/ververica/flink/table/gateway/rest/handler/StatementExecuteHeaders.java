@@ -24,7 +24,12 @@ import com.ververica.flink.table.gateway.rest.message.StatementExecuteRequestBod
 import com.ververica.flink.table.gateway.rest.message.StatementExecuteResponseBody;
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
+import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
+import org.apache.flink.runtime.rest.versioning.RuntimeRestAPIVersion;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
+
+import java.util.Collection;
+import java.util.Collections;
 
 /**
  * Message headers for executing a statement.
@@ -73,6 +78,11 @@ public class StatementExecuteHeaders
     @Override
     public String getTargetRestEndpointURL() {
         return URL;
+    }
+
+    @Override
+    public Collection<? extends RestAPIVersion<?>> getSupportedAPIVersions() {
+        return Collections.singleton(RuntimeRestAPIVersion.V1);
     }
 
     public static StatementExecuteHeaders getInstance() {

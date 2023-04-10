@@ -60,7 +60,7 @@ public class JobStatusHandler
 
     @Override
     protected CompletableFuture<JobStatusResponseBody> handleRequest(
-            @Nonnull HandlerRequest<EmptyRequestBody, SessionJobMessageParameters> request) throws RestHandlerException {
+            @Nonnull HandlerRequest<EmptyRequestBody> request) throws RestHandlerException {
 
         String sessionId = request.getPathParameter(SessionIdPathParameter.class);
         JobID jobId = request.getPathParameter(JobIdPathParameter.class);

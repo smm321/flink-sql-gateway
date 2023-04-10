@@ -18,6 +18,9 @@
 
 package com.ververica.flink.table.gateway.config.entries;
 
+import com.ververica.flink.table.gateway.utils.ConfigurationValidater;
+import org.apache.flink.configuration.ConfigOptions;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 
 /**
@@ -29,10 +32,9 @@ public class ViewEntry extends TableEntry {
 
     private final String query;
 
-    ViewEntry(String name, DescriptorProperties properties) {
+    ViewEntry(String name, Configuration properties) {
         super(name, properties);
-
-        query = properties.getString(TABLES_QUERY);
+        query = properties.getString(ConfigOptions.key(TABLES_QUERY).stringType().noDefaultValue());
     }
 
     public String getQuery() {
@@ -40,13 +42,14 @@ public class ViewEntry extends TableEntry {
     }
 
     @Override
-    protected void validate(DescriptorProperties properties) {
-        properties.validateString(TABLES_QUERY, false, 1);
+    protected void validate(Configuration properties) {
+        ConfigurationValidater validater = ConfigurationValidater.builder().configuration(properties).build();
+        validater.validateString(TABLES_QUERY, false, 1);
     }
 
     public static ViewEntry create(String name, String query) {
-        final DescriptorProperties properties = new DescriptorProperties(true);
-        properties.putString(TABLES_QUERY, query);
+        final Configuration properties = new Configuration();
+        properties.setString(TABLES_QUERY, query);
         return new ViewEntry(name, properties);
     }
 }

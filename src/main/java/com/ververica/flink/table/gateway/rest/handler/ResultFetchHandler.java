@@ -63,7 +63,7 @@ public class ResultFetchHandler
 
     @Override
     protected CompletableFuture<ResultFetchResponseBody> handleRequest(
-            @Nonnull HandlerRequest<ResultFetchRequestBody, ResultFetchMessageParameters> request)
+            @Nonnull HandlerRequest<ResultFetchRequestBody> request)
             throws RestHandlerException {
 
         String sessionId = request.getPathParameter(SessionIdPathParameter.class);

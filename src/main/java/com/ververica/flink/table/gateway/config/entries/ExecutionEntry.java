@@ -20,8 +20,10 @@ package com.ververica.flink.table.gateway.config.entries;
 
 import com.ververica.flink.table.gateway.config.ConfigUtil;
 import com.ververica.flink.table.gateway.config.Environment;
+import com.ververica.flink.table.gateway.utils.ConfigurationValidater;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.descriptors.DescriptorProperties;
@@ -48,11 +50,9 @@ public class ExecutionEntry extends ConfigEntry {
     private static final Logger LOG = LoggerFactory.getLogger(ExecutionEntry.class);
 
     public static final ExecutionEntry DEFAULT_INSTANCE =
-            new ExecutionEntry(new DescriptorProperties(true));
+            new ExecutionEntry(new Configuration());
 
     public static final String EXECUTION_PLANNER = "planner";
-
-    public static final String EXECUTION_PLANNER_VALUE_OLD = "old";
 
     public static final String EXECUTION_PLANNER_VALUE_BLINK = "blink";
 
@@ -108,17 +108,17 @@ public class ExecutionEntry extends ConfigEntry {
 
     public static final String EXECUTION_CURRENT_DATABASE = "current-database";
 
-    private ExecutionEntry(DescriptorProperties properties) {
+    private ExecutionEntry(Configuration properties) {
         super(properties);
     }
 
     @Override
-    protected void validate(DescriptorProperties properties) {
+    protected void validate(Configuration configuration) {
+        ConfigurationValidater properties = ConfigurationValidater.builder().configuration(configuration).build();
         properties.validateEnumValues(
                 EXECUTION_PLANNER,
                 true,
                 Arrays.asList(
-                        EXECUTION_PLANNER_VALUE_OLD,
                         EXECUTION_PLANNER_VALUE_BLINK));
         properties.validateEnumValues(
                 EXECUTION_TYPE,
@@ -163,67 +163,49 @@ public class ExecutionEntry extends ConfigEntry {
             builder.inBatchMode();
         }
 
-        final String planner = properties.getOptionalString(EXECUTION_PLANNER)
-                .orElse(EXECUTION_PLANNER_VALUE_OLD);
-
-        if (planner.equals(EXECUTION_PLANNER_VALUE_OLD)) {
-            builder.useOldPlanner();
-        } else if (planner.equals(EXECUTION_PLANNER_VALUE_BLINK)) {
-            builder.useBlinkPlanner();
-        }
-
         return builder.build();
     }
 
     public boolean inStreamingMode() {
+        ConfigurationValidater properties = ConfigurationValidater.builder().configuration(configuration).build();
         return properties.getOptionalString(EXECUTION_TYPE)
                 .map((v) -> v.equals(EXECUTION_TYPE_VALUE_STREAMING))
                 .orElse(false);
     }
 
     public boolean inBatchMode() {
+        ConfigurationValidater properties = ConfigurationValidater.builder().configuration(configuration).build();
         return properties.getOptionalString(EXECUTION_TYPE)
                 .map((v) -> v.equals(EXECUTION_TYPE_VALUE_BATCH))
                 .orElse(false);
     }
 
     public boolean isStreamingPlanner() {
-        final String planner = properties.getOptionalString(EXECUTION_PLANNER)
-                .orElse(EXECUTION_PLANNER_VALUE_OLD);
-
-        // Blink planner is a streaming planner
-        if (planner.equals(EXECUTION_PLANNER_VALUE_BLINK)) {
-            return true;
-        }
-        // Old planner can be a streaming or batch planner
-        else if (planner.equals(EXECUTION_PLANNER_VALUE_OLD)) {
-            return inStreamingMode();
-        }
-
-        return false;
+        return true;
     }
 
     public String getPlanner() {
-        return properties.getOptionalString(EXECUTION_PLANNER).orElse(EXECUTION_PLANNER_VALUE_OLD);
+        return EXECUTION_PLANNER_VALUE_BLINK;
     }
 
     public boolean isBatchPlanner() {
-        final String planner = properties.getOptionalString(EXECUTION_PLANNER)
-                .orElse(EXECUTION_PLANNER_VALUE_OLD);
-
-        // Blink planner is not a batch planner
-        if (planner.equals(EXECUTION_PLANNER_VALUE_BLINK)) {
-            return false;
-        }
-        // Old planner can be a streaming or batch planner
-        else if (planner.equals(EXECUTION_PLANNER_VALUE_OLD)) {
-            return inBatchMode();
-        }
+//        final String planner = properties.getOptionalString(EXECUTION_PLANNER)
+//                .orElse(EXECUTION_PLANNER_VALUE_OLD);
+//
+//        // Blink planner is not a batch planner
+//        if (planner.equals(EXECUTION_PLANNER_VALUE_BLINK)) {
+//            return false;
+//        }
+//        // Old planner can be a streaming or batch planner
+//        else if (planner.equals(EXECUTION_PLANNER_VALUE_OLD)) {
+//            return inBatchMode();
+//        }
 
         return false;
     }
 
     public TimeCharacteristic getTimeCharacteristic() {
+        ConfigurationValidater properties = ConfigurationValidater.builder().configuration(configuration).build();
         return properties.getOptionalString(EXECUTION_TIME_CHARACTERISTIC)
                 .flatMap((v) -> {
                     switch (v) {
@@ -243,31 +225,37 @@ public class ExecutionEntry extends ConfigEntry {
     }
 
     public long getPeriodicWatermarksInterval() {
+        ConfigurationValidater properties = ConfigurationValidater.builder().configuration(configuration).build();
         return properties.getOptionalLong(EXECUTION_PERIODIC_WATERMARKS_INTERVAL)
                 .orElseGet(() -> useDefaultValue(EXECUTION_PERIODIC_WATERMARKS_INTERVAL, 200L));
     }
 
     public long getMinStateRetention() {
+        ConfigurationValidater properties = ConfigurationValidater.builder().configuration(configuration).build();
         return properties.getOptionalLong(EXECUTION_MIN_STATE_RETENTION)
                 .orElseGet(() -> useDefaultValue(EXECUTION_MIN_STATE_RETENTION, 0L));
     }
 
     public long getMaxStateRetention() {
+        ConfigurationValidater properties = ConfigurationValidater.builder().configuration(configuration).build();
         return properties.getOptionalLong(EXECUTION_MAX_STATE_RETENTION)
                 .orElseGet(() -> useDefaultValue(EXECUTION_MAX_STATE_RETENTION, 0L));
     }
 
     public int getParallelism() {
+        ConfigurationValidater properties = ConfigurationValidater.builder().configuration(configuration).build();
         return properties.getOptionalInt(EXECUTION_PARALLELISM)
                 .orElseGet(() -> useDefaultValue(EXECUTION_PARALLELISM, 1));
     }
 
     public int getMaxParallelism() {
+        ConfigurationValidater properties = ConfigurationValidater.builder().configuration(configuration).build();
         return properties.getOptionalInt(EXECUTION_MAX_PARALLELISM)
                 .orElseGet(() -> useDefaultValue(EXECUTION_MAX_PARALLELISM, 128));
     }
 
     public RestartStrategies.RestartStrategyConfiguration getRestartStrategy() {
+        ConfigurationValidater properties = ConfigurationValidater.builder().configuration(configuration).build();
         return properties.getOptionalString(EXECUTION_RESTART_STRATEGY_TYPE)
                 .flatMap((v) -> {
                     switch (v) {
@@ -305,18 +293,22 @@ public class ExecutionEntry extends ConfigEntry {
     }
 
     public Optional<String> getCurrentCatalog() {
+        ConfigurationValidater properties = ConfigurationValidater.builder().configuration(configuration).build();
         return properties.getOptionalString(EXECUTION_CURRENT_CATALOG);
     }
 
     public Optional<String> getCurrentDatabase() {
+        ConfigurationValidater properties = ConfigurationValidater.builder().configuration(configuration).build();
         return properties.getOptionalString(EXECUTION_CURRENT_DATABASE);
     }
 
     public Map<String, String> asTopLevelMap() {
+        ConfigurationValidater properties = ConfigurationValidater.builder().configuration(configuration).build();
         return properties.asPrefixedMap(EXECUTION_ENTRY + '.');
     }
 
     public int getMaxBufferSize() {
+        ConfigurationValidater properties = ConfigurationValidater.builder().configuration(configuration).build();
         return properties.getOptionalInt(EXECUTION_MAX_BUFFER_SIZE)
                 .orElseGet(() -> useDefaultValue(EXECUTION_MAX_BUFFER_SIZE, 5000));
     }
@@ -343,11 +335,7 @@ public class ExecutionEntry extends ConfigEntry {
     public static ExecutionEntry merge(ExecutionEntry execution1, ExecutionEntry execution2) {
         final Map<String, String> mergedProperties = new HashMap<>(execution1.asMap());
         mergedProperties.putAll(execution2.asMap());
-
-        final DescriptorProperties properties = new DescriptorProperties(true);
-        properties.putProperties(mergedProperties);
-
-        return new ExecutionEntry(properties);
+        return new ExecutionEntry(Configuration.fromMap(mergedProperties));
     }
 
     /**
@@ -364,9 +352,7 @@ public class ExecutionEntry extends ConfigEntry {
             }
         });
 
-        final DescriptorProperties properties = new DescriptorProperties(true);
-        properties.putProperties(enrichedProperties);
-
-        return new ExecutionEntry(properties);
+        return new ExecutionEntry(Configuration.fromMap(enrichedProperties));
     }
+
 }

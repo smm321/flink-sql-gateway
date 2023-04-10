@@ -19,7 +19,10 @@
 package com.ververica.flink.table.gateway.config.entries;
 
 import com.ververica.flink.table.gateway.config.ConfigUtil;
+import com.ververica.flink.table.gateway.utils.ConfigurationValidater;
 import com.ververica.flink.table.gateway.utils.SqlGatewayException;
+import org.apache.flink.configuration.ConfigOptions;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 
 import java.util.Arrays;
@@ -55,7 +58,7 @@ public abstract class TableEntry extends ConfigEntry {
 
     private final String name;
 
-    protected TableEntry(String name, DescriptorProperties properties) {
+    protected TableEntry(String name, Configuration properties) {
         super(properties);
         this.name = name;
     }
@@ -68,9 +71,10 @@ public abstract class TableEntry extends ConfigEntry {
         return create(ConfigUtil.normalizeYaml(config));
     }
 
-    private static TableEntry create(DescriptorProperties properties) {
-        properties.validateString(TABLES_NAME, false, 1);
-        properties.validateEnumValues(
+    private static TableEntry create(Configuration properties) {
+        ConfigurationValidater validater = ConfigurationValidater.builder().configuration(properties).build();
+        validater.validateString(TABLES_NAME, false, 1);
+        validater.validateEnumValues(
                 TABLES_TYPE,
                 false,
                 Arrays.asList(
@@ -83,12 +87,12 @@ public abstract class TableEntry extends ConfigEntry {
                         TABLES_TYPE_VALUE_VIEW,
                         TABLES_TYPE_VALUE_TEMPORAL_TABLE));
 
-        final String name = properties.getString(TABLES_NAME);
+        final String name = properties.getString(ConfigOptions.key(TABLES_NAME).stringType().noDefaultValue());
 
-        final DescriptorProperties cleanedProperties =
-                properties.withoutKeys(Arrays.asList(TABLES_NAME, TABLES_TYPE));
+        final Configuration cleanedProperties =
+                validater.withoutKeys(Arrays.asList(TABLES_NAME, TABLES_TYPE));
 
-        switch (properties.getString(TABLES_TYPE)) {
+        switch (properties.getString(ConfigOptions.key(TABLES_TYPE).stringType().noDefaultValue())) {
             case TABLES_TYPE_VALUE_SOURCE:
             case TABLES_TYPE_VALUE_SOURCE_TABLE:
                 return new SourceTableEntry(name, cleanedProperties);

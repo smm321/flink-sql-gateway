@@ -18,19 +18,19 @@
 
 package com.ververica.flink.table.gateway.config.entries;
 
-import org.apache.flink.table.descriptors.DescriptorProperties;
+import org.apache.flink.configuration.Configuration;
 
 /**
  * Configuration of a table source and sink.
  */
 public class SourceSinkTableEntry extends TableEntry {
 
-    SourceSinkTableEntry(String name, DescriptorProperties properties) {
+    SourceSinkTableEntry(String name, Configuration properties) {
         super(name, properties);
     }
 
     @Override
-    protected void validate(DescriptorProperties properties) {
+    protected void validate(Configuration properties) {
         // validation is performed by the discovered factory
     }
 }

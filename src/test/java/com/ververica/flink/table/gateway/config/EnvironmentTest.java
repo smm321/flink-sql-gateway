@@ -34,11 +34,6 @@ import java.util.Set;
 
 import static com.ververica.flink.table.gateway.config.entries.CatalogEntry.CATALOG_NAME;
 import static com.ververica.flink.table.gateway.config.entries.ModuleEntry.MODULE_NAME;
-import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATALOG_TYPE;
-import static org.apache.flink.table.descriptors.ModuleDescriptorValidator.MODULE_TYPE;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-
 /**
  * Tests for {@link Environment}.
  */

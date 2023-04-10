@@ -63,8 +63,7 @@ public class StateParserHandler extends AbstractRestHandler<StateParserRequestBo
     }
 
     @Override
-    protected CompletableFuture handleRequest(@Nonnull HandlerRequest<StateParserRequestBody,
-            EmptyMessageParameters> request) throws RestHandlerException {
+    protected CompletableFuture handleRequest(@Nonnull HandlerRequest<StateParserRequestBody> request) throws RestHandlerException {
         List<List<String>> response = new ArrayList<>();
         try {
             String url = request.getRequestBody().getStateUrl();

@@ -32,8 +32,8 @@ public class YarnJobInfoHandler extends YarnJobAbstractHandler<EmptyRequestBody,
     }
 
     @Override
-    protected CompletableFuture handleRequest(@Nonnull HandlerRequest<EmptyRequestBody,
-            EmptyMessageParameters> request) throws RestHandlerException {
+    protected CompletableFuture handleRequest(@Nonnull HandlerRequest<EmptyRequestBody> request)
+            throws RestHandlerException {
         List<YarnJobInfoResult> infos = new ArrayList<>();
         try {
             List<ApplicationReport> reports = yarnClient.getApplications(Collections.singleton("Apache Flink"),

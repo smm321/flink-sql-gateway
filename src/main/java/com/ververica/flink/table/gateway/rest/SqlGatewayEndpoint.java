@@ -47,10 +47,12 @@ import com.ververica.flink.table.gateway.rest.handler.YarnJobSubmitHeaders;
 import com.ververica.flink.table.gateway.rest.session.SessionManager;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.rest.RestServerEndpoint;
 import org.apache.flink.runtime.rest.RestServerEndpointConfiguration;
 import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
+import org.apache.flink.util.ConfigurationException;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -65,8 +67,8 @@ public class SqlGatewayEndpoint extends RestServerEndpoint {
     private final SessionManager sessionManager;
 
     public SqlGatewayEndpoint(
-            RestServerEndpointConfiguration configuration,
-            SessionManager sessionManager) throws IOException {
+            Configuration configuration,
+            SessionManager sessionManager) throws IOException, ConfigurationException {
         super(configuration);
         this.sessionManager = sessionManager;
     }

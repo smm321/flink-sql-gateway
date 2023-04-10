@@ -51,10 +51,15 @@ import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.ObjectIdentifier;
-import org.apache.flink.table.operations.CatalogSinkModifyOperation;
+//import org.apache.flink.table.operations.CatalogSinkModifyOperation;
+import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
-import org.apache.flink.table.planner.calcite.SqlExprToRexConverterFactory;
+//import org.apache.flink.table.planner.calcite.SqlExprToRexConverterFactory;
+import org.apache.flink.table.operations.SinkModifyOperation;
+import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
+import org.apache.flink.table.planner.calcite.RexFactory;
+import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.operations.PlannerQueryOperation;
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions;
 import org.apache.flink.table.planner.plan.optimize.program.FlinkChainedProgram;
@@ -179,26 +184,62 @@ public class ParseLineageOperation implements NonJobOperation {
 
 		chainedProgram.addLast(
 				PREDICATE_PUSHDOWN,
-				FlinkGroupProgramBuilder.newBuilder()
+				FlinkGroupProgramBuilder
+						.newBuilder()
 						.addProgram(
-								FlinkHepRuleSetProgramBuilder.newBuilder()
-										.setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION())
-										.setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
-										.add(FlinkStreamRuleSets.FILTER_PREPARE_RULES())
-										.build(), "filter rules")
+							FlinkGroupProgramBuilder
+									.newBuilder()
+									.addProgram(
+											FlinkHepRuleSetProgramBuilder
+												.newBuilder()
+												.setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE())
+												.setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
+												.add(FlinkStreamRuleSets.JOIN_PREDICATE_REWRITE_RULES())
+												.build(),
+									"join predicate rewrite"
+							)
+						.addProgram(
+									FlinkHepRuleSetProgramBuilder.newBuilder()
+											.setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION())
+											.setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
+											.add(FlinkStreamRuleSets.FILTER_PREPARE_RULES())
+											.build(),
+								"filter rules"
+						)
+						.setIterations(5)
+						.build(),
+				"predicate rewrite"
+		).addProgram(
+				FlinkGroupProgramBuilder
+						.newBuilder()
 						.addProgram(
 								FlinkHepRuleSetProgramBuilder.newBuilder()
 										.setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE())
 										.setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
-										.add(FlinkStreamRuleSets.FILTER_TABLESCAN_PUSHDOWN_RULES())
-										.build(), "push predicate into table scan")
+										.add(FlinkStreamRuleSets.PUSH_PARTITION_DOWN_RULES())
+										.build(),
+								"push down partitions into table scan"
+						)
 						.addProgram(
 								FlinkHepRuleSetProgramBuilder.newBuilder()
 										.setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE())
 										.setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
-										.add(FlinkStreamRuleSets.PRUNE_EMPTY_RULES())
-										.build(), "prune empty after predicate push down")
-						.build());
+										.add(FlinkStreamRuleSets.PUSH_FILTER_DOWN_RULES())
+										.build(),
+								"push down filters into table scan"
+						)
+						.build(),
+				"push predicate into table scan"
+			).addProgram(
+					FlinkHepRuleSetProgramBuilder.newBuilder()
+							.setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE())
+							.setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
+							.add(FlinkStreamRuleSets.PRUNE_EMPTY_RULES())
+							.build(),
+					"prune empty after predicate push down"
+			)
+			.build()
+		);
 
 		// join reorder
 		if (context.getExecutionContext().getFlinkConfig()
@@ -255,7 +296,7 @@ public class ParseLineageOperation implements NonJobOperation {
 			}
 
 			Operation op = operation.get(0);
-			if (!(op instanceof CatalogSinkModifyOperation)){
+			if (!(op instanceof SinkModifyOperation)){
 				throw new TableException("Only insert statement is supported.");
 			}
 
@@ -271,9 +312,9 @@ public class ParseLineageOperation implements NonJobOperation {
 			List<ModifyOperation> operations = new ArrayList<>();
 			operations.add((ModifyOperation)op);
 
-			CatalogSinkModifyOperation sinkModifyOperation = (CatalogSinkModifyOperation)op;
-			lineageResult.setSinkDbName(sinkModifyOperation.getTableIdentifier().getDatabaseName());
-			lineageResult.setSinkTableName(sinkModifyOperation.getTableIdentifier().getObjectName());
+			SinkModifyOperation sinkModifyOperation = (SinkModifyOperation)op;
+			lineageResult.setSinkDbName(sinkModifyOperation.getContextResolvedTable().getIdentifier().getDatabaseName());
+			lineageResult.setSinkTableName(sinkModifyOperation.getContextResolvedTable().getIdentifier().getObjectName());
 			//todo extract partition information in the future
 			PlannerQueryOperation queryOperation = (PlannerQueryOperation)sinkModifyOperation.getChild();
 			RelNode relNode = queryOperation.getCalciteTree();
@@ -289,33 +330,45 @@ public class ParseLineageOperation implements NonJobOperation {
 				}
 
 				@Override
+				public FlinkRelBuilder getFlinkRelBuilder() {
+					PlannerBase base = (PlannerBase)impl.getPlanner();
+					return base.createRelBuilder();
+				}
+
+				@Override
 				public boolean needFinalTimeIndicatorConversion() {
 					return true;
 				}
 
 				@Override
-				public RexBuilder getRexBuilder() {
-					return relNode.getCluster().getRexBuilder();
-				}
-
-				@Override
-				public SqlExprToRexConverterFactory getSqlExprToRexConverterFactory() {
-					return relNode.getCluster()
-							.getPlanner()
-							.getContext()
-							.unwrap(org.apache.flink.table.planner.calcite.FlinkContext.class)
-							.getSqlExprToRexConverterFactory();
-				}
-
-				@Override
 				public FunctionCatalog getFunctionCatalog() {
 					return context.getFunctionCatalog();
-
 				}
 
 				@Override
 				public CatalogManager getCatalogManager() {
 					return impl.getCatalogManager();
+				}
+
+				@Override
+				public ModuleManager getModuleManager() {
+					return null;
+				}
+
+				@Override
+				public RexFactory getRexFactory() {
+					return null;
+				}
+
+				@Override
+				public boolean isBatchMode() {
+					return false;
+				}
+
+				@Override
+				public ClassLoader getClassLoader() {
+					PlannerBase base = (PlannerBase)impl.getPlanner();
+					return base.getFlinkContext().getClassLoader();
 				}
 
 				@Override

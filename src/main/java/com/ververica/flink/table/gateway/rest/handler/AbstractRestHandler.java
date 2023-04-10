@@ -18,8 +18,8 @@
 
 package com.ververica.flink.table.gateway.rest.handler;
 
+import com.ververica.flink.table.gateway.utils.FutureUtils;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.handler.util.HandlerUtils;
@@ -68,7 +68,7 @@ public abstract class AbstractRestHandler<R extends RequestBody, P extends Respo
 
     @Override
     protected CompletableFuture<Void> respondToRequest(ChannelHandlerContext ctx, HttpRequest httpRequest,
-                                                       HandlerRequest<R, M> handlerRequest) {
+                                                       HandlerRequest<R> handlerRequest) {
         CompletableFuture<P> response;
 
         try {
@@ -95,6 +95,6 @@ public abstract class AbstractRestHandler<R extends RequestBody, P extends Respo
      * @return future containing a handler response
      * @throws RestHandlerException if the handling failed
      */
-    protected abstract CompletableFuture<P> handleRequest(@Nonnull HandlerRequest<R, M> request)
+    protected abstract CompletableFuture<P> handleRequest(@Nonnull HandlerRequest<R> request)
             throws RestHandlerException;
 }

@@ -8,6 +8,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
@@ -38,8 +39,8 @@ public class YarnJobStopHandler extends YarnJobAbstractHandler<YarnJobStopReques
     }
 
     @Override
-    protected CompletableFuture handleRequest(@Nonnull HandlerRequest<YarnJobStopRequestBody,
-            EmptyMessageParameters> request) throws RestHandlerException {
+    protected CompletableFuture handleRequest(@Nonnull HandlerRequest<YarnJobStopRequestBody> request)
+            throws RestHandlerException {
         String name = request.getRequestBody().getJobName();
         List<YarnJobStopResult> list = new ArrayList<>();
         try {
@@ -67,7 +68,8 @@ public class YarnJobStopHandler extends YarnJobAbstractHandler<YarnJobStopReques
                         String jobName = message.getJobName();
                         String location = clusterClient.stopWithSavepoint(jobId,
                                 true,
-                                "hdfs:///checkpoint/" + jobName + "/" + jobId.toHexString()).get();
+                                "hdfs:///checkpoint/" + jobName + "/" + jobId.toHexString(),
+                                SavepointFormatType.CANONICAL).get();
                         YarnJobStopResult yarnJobStopResult = new YarnJobStopResult();
                         yarnJobStopResult.setAppId(applicationId.toString());
                         yarnJobStopResult.setJobId(jobId.toHexString());

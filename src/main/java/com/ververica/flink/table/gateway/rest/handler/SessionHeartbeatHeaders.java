@@ -24,7 +24,12 @@ import org.apache.flink.runtime.rest.HttpMethodWrapper;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.EmptyResponseBody;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
+import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
+import org.apache.flink.runtime.rest.versioning.RuntimeRestAPIVersion;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
+
+import java.util.Collection;
+import java.util.Collections;
 
 /**
  * Message headers for triggering session heartbeat.
@@ -72,6 +77,11 @@ public class SessionHeartbeatHeaders
     @Override
     public String getTargetRestEndpointURL() {
         return URL;
+    }
+
+    @Override
+    public Collection<? extends RestAPIVersion<?>> getSupportedAPIVersions() {
+        return Collections.singleton(RuntimeRestAPIVersion.V1);
     }
 
     public static SessionHeartbeatHeaders getInstance() {

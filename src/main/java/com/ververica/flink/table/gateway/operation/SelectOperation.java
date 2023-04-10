@@ -42,9 +42,13 @@ import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableColumn;
+import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.bridge.java.internal.StreamTableEnvironmentImpl;
+import org.apache.flink.table.api.internal.TableEnvironmentImpl;
+import org.apache.flink.table.operations.CollectModifyOperation;
+import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
@@ -212,10 +216,19 @@ public class SelectOperation extends AbstractJobOperation {
         try {
             // writing to a sink requires an optimization step that might reference UDFs during code compilation
             //need refactor here
-            StreamTableEnvironmentImpl impl = executionContext.getStreamTableEnvironmentImpl();
+            TableEnvironmentImpl impl = executionContext.getStreamTableEnvironmentImpl();
             impl.registerTableSinkInternal(tableName, result.getTableSink());
-            impl.insertInto(tableName, table);
-            pipeline = impl.getPipeline(jobName);
+//            table.executeInsert(tableName)
+            table.insertInto(tableName);
+            TableConfig tableConfig = TableConfig.getDefault();
+            tableConfig.addConfiguration(executionContext.getFlinkConfig());
+            CollectModifyOperation sinkOperation = new CollectModifyOperation(
+                    (QueryOperation)impl.getParser().parse(query).get(0)
+            );
+            pipeline = executionContext.getExecutor()
+                    .createPipeline(impl.getPlanner().translate(Collections.singletonList(sinkOperation)),
+                                   tableConfig,
+                                   jobName);
         } catch (Throwable t) {
             // the result needs to be closed as long as
             // it not stored in the result store

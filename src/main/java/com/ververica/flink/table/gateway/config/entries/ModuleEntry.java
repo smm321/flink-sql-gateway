@@ -19,12 +19,12 @@
 package com.ververica.flink.table.gateway.config.entries;
 
 import com.ververica.flink.table.gateway.config.ConfigUtil;
-import org.apache.flink.table.descriptors.DescriptorProperties;
+import com.ververica.flink.table.gateway.utils.ConfigurationValidater;
+import org.apache.flink.configuration.ConfigOptions;
+import org.apache.flink.configuration.Configuration;
 
 import java.util.Collections;
 import java.util.Map;
-
-import static org.apache.flink.table.descriptors.ModuleDescriptorValidator.MODULE_TYPE;
 
 /**
  * Describes a module configuration entry.
@@ -33,9 +33,11 @@ public class ModuleEntry extends ConfigEntry {
 
     public static final String MODULE_NAME = "name";
 
+    public static final String MODULE_TYPE = "type";
+
     private final String name;
 
-    protected ModuleEntry(String name, DescriptorProperties properties) {
+    protected ModuleEntry(String name, Configuration properties) {
         super(properties);
         this.name = name;
     }
@@ -45,24 +47,20 @@ public class ModuleEntry extends ConfigEntry {
     }
 
     @Override
-    protected void validate(DescriptorProperties properties) {
-        properties.validateString(MODULE_TYPE, false, 1);
-
-        // further validation is performed by the discovered factory
+    protected void validate(Configuration properties) {
+        ConfigurationValidater validater = ConfigurationValidater.builder().configuration(properties).build();
+        validater.validateString(MODULE_TYPE, false, 1);
     }
 
     public static ModuleEntry create(Map<String, Object> config) {
         return create(ConfigUtil.normalizeYaml(config));
     }
 
-    private static ModuleEntry create(DescriptorProperties properties) {
-        properties.validateString(MODULE_NAME, false, 1);
-
-        final String name = properties.getString(MODULE_NAME);
-
-        final DescriptorProperties cleanedProperties =
-                properties.withoutKeys(Collections.singletonList(MODULE_NAME));
-
+    private static ModuleEntry create(Configuration properties) {
+        ConfigurationValidater validater = ConfigurationValidater.builder().configuration(properties).build();
+        validater.validateString(MODULE_TYPE, false, 1);
+        final String name = properties.get(ConfigOptions.key(MODULE_NAME).stringType().noDefaultValue());
+        final Configuration cleanedProperties = validater.withoutKeys(Collections.singletonList(MODULE_NAME));
         return new ModuleEntry(name, cleanedProperties);
     }
 }

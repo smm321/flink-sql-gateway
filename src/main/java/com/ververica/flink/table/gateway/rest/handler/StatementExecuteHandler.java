@@ -61,7 +61,7 @@ public class StatementExecuteHandler
 
     @Override
     protected CompletableFuture<StatementExecuteResponseBody> handleRequest(
-            @Nonnull HandlerRequest<StatementExecuteRequestBody, SessionMessageParameters> request)
+            @Nonnull HandlerRequest<StatementExecuteRequestBody> request)
             throws RestHandlerException {
 
         String sessionId = request.getPathParameter(SessionIdPathParameter.class);

@@ -19,7 +19,9 @@
 package com.ververica.flink.table.gateway.config.entries;
 
 import com.ververica.flink.table.gateway.config.ConfigUtil;
-import org.apache.flink.table.descriptors.DescriptorProperties;
+import com.ververica.flink.table.gateway.utils.ConfigurationValidater;
+import org.apache.flink.configuration.ConfigOptions;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.TimeUtils;
 
 import java.util.HashMap;
@@ -32,7 +34,7 @@ import static com.ververica.flink.table.gateway.config.Environment.SESSION_ENTRY
  */
 public class SessionEntry extends ConfigEntry {
 
-    public static final SessionEntry DEFAULT_INSTANCE = new SessionEntry(new DescriptorProperties(true));
+    public static final SessionEntry DEFAULT_INSTANCE = new SessionEntry(new Configuration());
 
     private static final String SESSION_IDLE_TIMEOUT = "idle-timeout";
 
@@ -40,15 +42,16 @@ public class SessionEntry extends ConfigEntry {
 
     private static final String SESSION_MAX_COUNT = "max-count";
 
-    private SessionEntry(DescriptorProperties properties) {
+    private SessionEntry(Configuration properties) {
         super(properties);
     }
 
     @Override
-    protected void validate(DescriptorProperties properties) {
-        properties.validateDuration(SESSION_IDLE_TIMEOUT, true, 1);
-        properties.validateDuration(SESSION_CHECK_INTERVAL, true, 1);
-        properties.validateLong(SESSION_MAX_COUNT, true, 0);
+    protected void validate(Configuration properties) {
+        ConfigurationValidater validater = ConfigurationValidater.builder().configuration(properties).build();
+        validater.validateDuration(SESSION_IDLE_TIMEOUT, true, 1);
+        validater.validateDuration(SESSION_CHECK_INTERVAL, true, 1);
+        validater.validateLong(SESSION_MAX_COUNT, true, 0);
     }
 
     public static SessionEntry create(Map<String, Object> config) {
@@ -56,7 +59,8 @@ public class SessionEntry extends ConfigEntry {
     }
 
     public Map<String, String> asTopLevelMap() {
-        return properties.asPrefixedMap(SESSION_ENTRY + '.');
+        ConfigurationValidater validater = ConfigurationValidater.builder().configuration(configuration).build();
+        return validater.asPrefixedMap(SESSION_ENTRY + '.');
     }
 
     /**
@@ -66,24 +70,23 @@ public class SessionEntry extends ConfigEntry {
     public static SessionEntry merge(SessionEntry session1, SessionEntry session2) {
         final Map<String, String> mergedProperties = new HashMap<>(session1.asTopLevelMap());
         mergedProperties.putAll(session2.asTopLevelMap());
-
-        final DescriptorProperties properties = new DescriptorProperties(true);
-        properties.putProperties(mergedProperties);
-
-        return new SessionEntry(properties);
+        return new SessionEntry(Configuration.fromMap(mergedProperties));
     }
 
     public long getIdleTimeout() {
-        String timeout = properties.getOptionalString(SESSION_IDLE_TIMEOUT).orElse("1d");
+        String timeout = configuration.getOptional(
+                ConfigOptions.key(SESSION_IDLE_TIMEOUT).stringType().defaultValue("1d")).get();
         return TimeUtils.parseDuration(timeout).toMillis();
     }
 
     public long getCheckInterval() {
-        String interval = properties.getOptionalString(SESSION_CHECK_INTERVAL).orElse("1h");
+        String interval = configuration.getOptional(
+                ConfigOptions.key(SESSION_CHECK_INTERVAL).stringType().defaultValue("1h")).get();
         return TimeUtils.parseDuration(interval).toMillis();
     }
 
     public long getMaxCount() {
-        return properties.getOptionalLong(SESSION_MAX_COUNT).orElse(1000000L);
+        return configuration.getOptional(
+                ConfigOptions.key(SESSION_MAX_COUNT).longType().defaultValue(1000000L)).get();
     }
 }

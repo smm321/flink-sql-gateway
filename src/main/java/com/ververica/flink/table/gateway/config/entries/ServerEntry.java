@@ -19,7 +19,9 @@
 package com.ververica.flink.table.gateway.config.entries;
 
 import com.ververica.flink.table.gateway.config.ConfigUtil;
-import org.apache.flink.table.descriptors.DescriptorProperties;
+import com.ververica.flink.table.gateway.utils.ConfigurationValidater;
+import org.apache.flink.configuration.ConfigOptions;
+import org.apache.flink.configuration.Configuration;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -32,7 +34,7 @@ import static com.ververica.flink.table.gateway.config.Environment.SERVER_ENTRY;
  */
 public class ServerEntry extends ConfigEntry {
 
-    public static final ServerEntry DEFAULT_INSTANCE = new ServerEntry(new DescriptorProperties(true));
+    public static final ServerEntry DEFAULT_INSTANCE = new ServerEntry(new Configuration());
 
     private static final String DEFAULT_ADDRESS = "127.0.0.1";
 
@@ -46,16 +48,17 @@ public class ServerEntry extends ConfigEntry {
 
     private static final String JVM_ARGS = "jvm_args";
 
-    private ServerEntry(DescriptorProperties properties) {
+    private ServerEntry(Configuration properties) {
         super(properties);
     }
 
     @Override
-    protected void validate(DescriptorProperties properties) {
-        properties.validateString(GATEWAY_BIND_ADDRESS, true);
-        properties.validateString(GATEWAY_ADDRESS, true);
-        properties.validateInt(GATEWAY_PORT, true, 1024, 65535);
-        properties.validateString(JVM_ARGS, true);
+    protected void validate(Configuration properties) {
+        ConfigurationValidater validater = ConfigurationValidater.builder().configuration(properties).build();
+        validater.validateString(GATEWAY_BIND_ADDRESS, true);
+        validater.validateString(GATEWAY_ADDRESS, true);
+        validater.validateInt(GATEWAY_PORT, true, 1024, 65535);
+        validater.validateString(JVM_ARGS, true);
     }
 
     public static ServerEntry create(Map<String, Object> config) {
@@ -63,7 +66,8 @@ public class ServerEntry extends ConfigEntry {
     }
 
     public Map<String, String> asTopLevelMap() {
-        return properties.asPrefixedMap(SERVER_ENTRY + '.');
+        ConfigurationValidater validater = ConfigurationValidater.builder().configuration(configuration).build();
+        return validater.asPrefixedMap(SERVER_ENTRY + '.');
     }
 
     /**
@@ -73,26 +77,34 @@ public class ServerEntry extends ConfigEntry {
     public static ServerEntry merge(ServerEntry gateway1, ServerEntry gateway2) {
         final Map<String, String> mergedProperties = new HashMap<>(gateway1.asTopLevelMap());
         mergedProperties.putAll(gateway2.asTopLevelMap());
-
-        final DescriptorProperties properties = new DescriptorProperties(true);
-        properties.putProperties(mergedProperties);
-
-        return new ServerEntry(properties);
+        return new ServerEntry(Configuration.fromMap(mergedProperties));
     }
 
     public Optional<String> getBindAddress() {
-        return properties.getOptionalString(GATEWAY_BIND_ADDRESS);
+        return configuration.getOptional(ConfigOptions.key(GATEWAY_BIND_ADDRESS).stringType().noDefaultValue());
     }
 
     public String getAddress() {
-        return properties.getOptionalString(GATEWAY_ADDRESS).orElse(DEFAULT_ADDRESS);
+        return configuration.getOptional(ConfigOptions
+                .key(GATEWAY_ADDRESS)
+                .stringType()
+                .defaultValue(DEFAULT_ADDRESS))
+                .get();
     }
 
     public int getPort() {
-        return properties.getOptionalInt(GATEWAY_PORT).orElse(DEFAULT_PORT);
+        return configuration.getOptional(ConfigOptions
+                .key(GATEWAY_PORT)
+                .intType()
+                .defaultValue(DEFAULT_PORT))
+                .get();
     }
 
     public String getJvmArgs() {
-        return properties.getOptionalString(JVM_ARGS).orElse("");
+        return configuration.getOptional(ConfigOptions
+                .key(JVM_ARGS)
+                .stringType()
+                .defaultValue(""))
+                .get();
     }
 }

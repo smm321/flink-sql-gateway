@@ -19,9 +19,8 @@
 package com.ververica.flink.table.gateway.config.entries;
 
 import com.ververica.flink.table.gateway.config.ConfigUtil;
-import org.apache.flink.table.descriptors.DescriptorProperties;
-import org.apache.flink.table.descriptors.FunctionDescriptor;
-import org.apache.flink.table.descriptors.FunctionDescriptorValidator;
+import com.ververica.flink.table.gateway.utils.ConfigurationValidater;
+import org.apache.flink.configuration.Configuration;
 
 import java.util.Collections;
 import java.util.Map;
@@ -35,46 +34,34 @@ public class FunctionEntry extends ConfigEntry {
 
     private String name;
 
-    private FunctionEntry(String name, DescriptorProperties properties) {
+    private FunctionEntry(String name, Configuration properties) {
         super(properties);
         this.name = name;
     }
 
     @Override
-    protected void validate(DescriptorProperties properties) {
-        new FunctionDescriptorValidator().validate(properties);
+    protected void validate(Configuration properties) {
+//        new FunctionDescriptorValidator().validate(properties);
     }
 
     public String getName() {
         return name;
     }
 
-    public FunctionDescriptor getDescriptor() {
-        return new FunctionEntryDescriptor();
-    }
+//    public FunctionDescriptor getDescriptor() {
+//        return new FunctionEntryDescriptor();
+//    }
 
     public static FunctionEntry create(Map<String, Object> config) {
         return create(ConfigUtil.normalizeYaml(config));
     }
 
-    private static FunctionEntry create(DescriptorProperties properties) {
-        properties.validateString(FUNCTIONS_NAME, false, 1);
-
-        final String name = properties.getString(FUNCTIONS_NAME);
-
-        final DescriptorProperties cleanedProperties =
-                properties.withoutKeys(Collections.singletonList(FUNCTIONS_NAME));
-
+    private static FunctionEntry create(Configuration properties) {
+        ConfigurationValidater validater = ConfigurationValidater.builder().configuration(properties).build();
+        validater.validateString(FUNCTIONS_NAME, false, 1);
+        final String name = validater.getString(FUNCTIONS_NAME);
+        final Configuration cleanedProperties =
+                validater.withoutKeys(Collections.singletonList(FUNCTIONS_NAME));
         return new FunctionEntry(name, cleanedProperties);
-    }
-
-    // --------------------------------------------------------------------------------------------
-
-    private class FunctionEntryDescriptor extends FunctionDescriptor {
-
-        @Override
-        public Map<String, String> toProperties() {
-            return FunctionEntry.this.properties.asMap();
-        }
     }
 }

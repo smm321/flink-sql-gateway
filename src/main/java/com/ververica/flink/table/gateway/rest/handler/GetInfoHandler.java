@@ -47,7 +47,7 @@ public class GetInfoHandler
 
     @Override
     protected CompletableFuture<GetInfoResponseBody> handleRequest(
-            @Nonnull HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request) throws RestHandlerException {
+            @Nonnull HandlerRequest<EmptyRequestBody> request) throws RestHandlerException {
         String version = EnvironmentInformation.getVersion();
         return CompletableFuture.completedFuture(new GetInfoResponseBody("Apache Flink", version));
     }

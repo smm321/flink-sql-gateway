@@ -18,12 +18,12 @@
 
 package com.ververica.flink.table.gateway.config;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonToken;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.io.IOContext;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.yaml.YAMLParser;
-import org.apache.flink.table.descriptors.DescriptorProperties;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -44,12 +44,14 @@ public class ConfigUtil {
     /**
      * Normalizes key-value properties from Yaml in the normalized format of the Table API.
      */
-    public static DescriptorProperties normalizeYaml(Map<String, Object> yamlMap) {
+    public static Configuration normalizeYaml(Map<String, Object> yamlMap) {
         final Map<String, String> normalized = new HashMap<>();
         yamlMap.forEach((k, v) -> normalizeYamlObject(normalized, k, v));
-        final DescriptorProperties properties = new DescriptorProperties(true);
-        properties.putProperties(normalized);
-        return properties;
+        final Configuration configuration = new Configuration();
+        normalized.forEach((k, v) -> {
+            configuration.setString(k, v);
+        });
+        return configuration;
     }
 
     private static void normalizeYamlObject(Map<String, String> normalized, String key, Object value) {

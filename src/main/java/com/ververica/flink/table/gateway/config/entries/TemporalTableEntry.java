@@ -18,6 +18,8 @@
 
 package com.ververica.flink.table.gateway.config.entries;
 
+import com.ververica.flink.table.gateway.utils.ConfigurationValidater;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 
 import java.util.List;
@@ -40,12 +42,12 @@ public class TemporalTableEntry extends TableEntry {
 
     private final String timeAttribute;
 
-    TemporalTableEntry(String name, DescriptorProperties properties) {
+    TemporalTableEntry(String name, Configuration properties) {
         super(name, properties);
-
-        historyTable = properties.getString(TABLES_HISTORY_TABLE);
-        primaryKeyFields = properties.getArray(TABLES_PRIMARY_KEY, properties::getString);
-        timeAttribute = properties.getString(TABLES_TIME_ATTRIBUTE);
+        ConfigurationValidater validater = ConfigurationValidater.builder().configuration(configuration).build();
+        historyTable = validater.getString(TABLES_HISTORY_TABLE);
+        primaryKeyFields = validater.getArray(TABLES_PRIMARY_KEY, validater::getString);
+        timeAttribute = validater.getString(TABLES_TIME_ATTRIBUTE);
     }
 
     public String getHistoryTable() {
@@ -61,13 +63,14 @@ public class TemporalTableEntry extends TableEntry {
     }
 
     @Override
-    protected void validate(DescriptorProperties properties) {
-        properties.validateString(TABLES_HISTORY_TABLE, false, 1);
-        properties.validateArray(
+    protected void validate(Configuration properties) {
+        ConfigurationValidater validater = ConfigurationValidater.builder().configuration(properties).build();
+        validater.validateString(TABLES_HISTORY_TABLE, false, 1);
+        validater.validateArray(
                 TABLES_PRIMARY_KEY,
-                (key) -> properties.validateString(key, false, 1),
+                (key) -> validater.validateString(key, false, 1),
                 1,
                 1); // currently, composite primary keys are not supported
-        properties.validateString(TABLES_TIME_ATTRIBUTE, false, 1);
+        validater.validateString(TABLES_TIME_ATTRIBUTE, false, 1);
     }
 }

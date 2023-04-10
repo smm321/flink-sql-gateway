@@ -54,7 +54,7 @@ public class SessionCloseHandler
 
     @Override
     protected CompletableFuture<SessionCloseResponseBody> handleRequest(
-            @Nonnull HandlerRequest<EmptyRequestBody, SessionMessageParameters> request) throws RestHandlerException {
+            @Nonnull HandlerRequest<EmptyRequestBody> request) throws RestHandlerException {
 
         String sessionId = request.getPathParameter(SessionIdPathParameter.class);
         try {

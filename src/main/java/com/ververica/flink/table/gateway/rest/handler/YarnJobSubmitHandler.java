@@ -36,8 +36,8 @@ public class YarnJobSubmitHandler extends YarnJobAbstractHandler<YarnJobSubmitRe
     }
 
     @Override
-    protected CompletableFuture handleRequest(@Nonnull HandlerRequest<YarnJobSubmitRequestBody,
-            EmptyMessageParameters> request) throws RestHandlerException {
+    protected CompletableFuture handleRequest(@Nonnull HandlerRequest<YarnJobSubmitRequestBody> request)
+            throws RestHandlerException {
         String cmd = request.getRequestBody().getCmd();
 
         final String configurationDirectory = getConfigurationDirectoryFromEnv();

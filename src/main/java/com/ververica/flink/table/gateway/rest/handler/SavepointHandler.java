@@ -8,6 +8,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
@@ -39,8 +40,7 @@ public class SavepointHandler extends YarnJobAbstractHandler<SavepointRequestBod
     }
 
     @Override
-    protected CompletableFuture handleRequest(@Nonnull HandlerRequest<SavepointRequestBody,
-            EmptyMessageParameters> request) throws RestHandlerException {
+    protected CompletableFuture handleRequest(@Nonnull HandlerRequest<SavepointRequestBody> request) throws RestHandlerException {
         List result = new ArrayList();
         try {
             String jobName = request.getRequestBody().getJobName();
@@ -73,7 +73,8 @@ public class SavepointHandler extends YarnJobAbstractHandler<SavepointRequestBod
                     JobStatusMessage message = (JobStatusMessage) it.next();
                     JobID jobId = message.getJobId();
                     String location = clusterClient.triggerSavepoint(jobId,
-                            "hdfs:///checkpoint/" + jobName + "/" + jobId.toHexString()).get();
+                            "hdfs:///checkpoint/" + jobName + "/" + jobId.toHexString(),
+                            SavepointFormatType.CANONICAL).get();
                     SavepointResult savepointResult = new SavepointResult();
                     savepointResult.setAppId(applicationId.toString());
                     savepointResult.setJobId(jobId.toHexString());

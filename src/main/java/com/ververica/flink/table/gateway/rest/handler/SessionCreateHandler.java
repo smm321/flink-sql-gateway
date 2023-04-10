@@ -44,7 +44,6 @@ public class SessionCreateHandler
         extends AbstractRestHandler<SessionCreateRequestBody, SessionCreateResponseBody, EmptyMessageParameters> {
 
     private static final List<String> AVAILABLE_PLANNERS = Arrays.asList(
-            ExecutionEntry.EXECUTION_PLANNER_VALUE_OLD,
             ExecutionEntry.EXECUTION_PLANNER_VALUE_BLINK);
 
     private static final List<String> AVAILABLE_EXECUTION_TYPES = Arrays.asList(
@@ -65,7 +64,7 @@ public class SessionCreateHandler
 
     @Override
     protected CompletableFuture<SessionCreateResponseBody> handleRequest(
-            @Nonnull HandlerRequest<SessionCreateRequestBody, EmptyMessageParameters> request) throws RestHandlerException {
+            @Nonnull HandlerRequest<SessionCreateRequestBody> request) throws RestHandlerException {
 
         String sessionName = request.getRequestBody().getSessionName();
 

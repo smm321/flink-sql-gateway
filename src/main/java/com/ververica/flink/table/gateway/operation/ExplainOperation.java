@@ -26,6 +26,7 @@ import com.ververica.flink.table.gateway.rest.result.ResultKind;
 import com.ververica.flink.table.gateway.rest.result.ResultSet;
 import com.ververica.flink.table.gateway.utils.SqlExecutionException;
 
+import org.apache.flink.table.api.ExplainDetail;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.types.logical.VarCharType;
@@ -48,11 +49,12 @@ public class ExplainOperation implements NonJobOperation {
         final TableEnvironment tableEnv = context.getTableEnvironment();
         // translate
         try {
-            final Table table = createTable(context, tableEnv, statement);
-            String explanation = context.wrapClassLoader(() -> tableEnv.explain(table));
+            String explanation = context.wrapClassLoader(() -> tableEnv.explainSql(statement,
+                    ExplainDetail.JSON_EXECUTION_PLAN));
             return ResultSet.builder()
                     .resultKind(ResultKind.SUCCESS_WITH_CONTENT)
-                    .columns(ColumnInfo.create(ConstantNames.EXPLAIN_RESULT, new VarCharType(false, explanation.length())))
+                    .columns(ColumnInfo.create(ConstantNames.EXPLAIN_RESULT, new VarCharType(false,
+                            explanation.length())))
                     .data(Row.of(explanation))
                     .build();
         } catch (Throwable t) {

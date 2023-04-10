@@ -18,7 +18,6 @@
 
 package com.ververica.flink.table.gateway.result;
 
-import com.ververica.flink.table.gateway.sink.CollectBatchTableSink;
 import com.ververica.flink.table.gateway.utils.SqlExecutionException;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobExecutionResult;
@@ -26,6 +25,8 @@ import org.apache.flink.api.common.accumulators.SerializedListAccumulator;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.planner.sinks.CollectRowTableSink;
+import org.apache.flink.table.planner.sinks.CollectTableSink;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.AbstractID;
@@ -45,9 +46,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class BatchResult<C> extends AbstractResult<C, Row> {
 
     private final String accumulatorName;
-    private final CollectBatchTableSink tableSink;
+    private final CollectTableSink tableSink = new CollectRowTableSink();
     private final Object resultLock;
     private final ClassLoader classLoader;
+    private final ExecutionConfig executionConfig;
 
     private AtomicReference<SqlExecutionException> executionException = new AtomicReference<>();
     private List<Row> resultTable;
@@ -61,7 +63,9 @@ public class BatchResult<C> extends AbstractResult<C, Row> {
             ClassLoader classLoader) {
         // TODO supports large result set
         accumulatorName = new AbstractID().toString();
-        tableSink = new CollectBatchTableSink(accumulatorName, outputType.createSerializer(config), tableSchema);
+        executionConfig = config;
+        tableSink.configure(tableSchema.getFieldNames(), tableSchema.getFieldTypes());
+
         resultLock = new Object();
         this.classLoader = checkNotNull(classLoader);
     }
@@ -124,7 +128,7 @@ public class BatchResult<C> extends AbstractResult<C, Row> {
                     throw new SqlExecutionException("The accumulator could not retrieve the result.");
                 }
                 final List<Row> resultTable = SerializedListAccumulator
-                        .deserializeList(accResult, tableSink.getSerializer());
+                        .deserializeList(accResult, tableSink.getOutputType().createSerializer(executionConfig));
                 // sets the result table all at once
                 synchronized (resultLock) {
                     BatchResult.this.resultTable = resultTable;

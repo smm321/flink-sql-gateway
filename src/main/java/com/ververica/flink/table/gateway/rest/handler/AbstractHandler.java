@@ -19,7 +19,7 @@
 package com.ververica.flink.table.gateway.rest.handler;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.calcite.shaded.com.google.common.base.Ascii;
 import org.apache.flink.runtime.rest.FlinkHttpObjectAggregator;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.HandlerRequestException;
@@ -32,7 +32,7 @@ import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.runtime.rest.messages.UntypedResponseMessageHeaders;
 import org.apache.flink.runtime.rest.util.RestMapperUtils;
 import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
-import org.apache.flink.shaded.guava18.com.google.common.base.Ascii;
+import org.apache.flink.runtime.rest.versioning.RuntimeRestAPIVersion;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParseException;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonMappingException;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
@@ -46,6 +46,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.FutureUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,6 +55,7 @@ import java.io.File;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -117,7 +119,7 @@ public abstract class AbstractHandler<R extends RequestBody, M extends MessagePa
         if (slashIndex < 0) {
             slashIndex = uri.length();
         }
-        currentVersion = RestAPIVersion.fromURLVersionPrefix(uri.substring(1, slashIndex));
+        currentVersion = RuntimeRestAPIVersion.V1;
 
         if (log.isTraceEnabled()) {
             log.trace("Received request " + uri + '.');
@@ -155,9 +157,9 @@ public abstract class AbstractHandler<R extends RequestBody, M extends MessagePa
                 }
             }
 
-            final HandlerRequest<R, M> handlerRequest;
+            final HandlerRequest<R> handlerRequest;
             try {
-                handlerRequest = new HandlerRequest<R, M>(
+                handlerRequest = HandlerRequest.resolveParametersAndCreate(
                         request,
                         untypedResponseMessageHeaders.getUnresolvedMessageParameters(),
                         routedRequest.getRouteResult().pathParams(),
@@ -259,5 +261,5 @@ public abstract class AbstractHandler<R extends RequestBody, M extends MessagePa
     protected abstract CompletableFuture<Void> respondToRequest(
             ChannelHandlerContext ctx,
             HttpRequest httpRequest,
-            HandlerRequest<R, M> handlerRequest) throws RestHandlerException;
+            HandlerRequest<R> handlerRequest) throws RestHandlerException;
 }

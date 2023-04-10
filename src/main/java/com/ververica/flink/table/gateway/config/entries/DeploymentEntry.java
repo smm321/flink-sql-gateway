@@ -20,11 +20,12 @@ package com.ververica.flink.table.gateway.config.entries;
 
 import com.ververica.flink.table.gateway.config.ConfigUtil;
 import com.ververica.flink.table.gateway.config.Environment;
+import com.ververica.flink.table.gateway.utils.ConfigurationValidater;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.flink.client.cli.CliFrontendParser;
-import org.apache.flink.table.descriptors.DescriptorProperties;
+import org.apache.flink.configuration.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,7 +48,7 @@ public class DeploymentEntry extends ConfigEntry {
     private static final Logger LOG = LoggerFactory.getLogger(DeploymentEntry.class);
 
     public static final DeploymentEntry DEFAULT_INSTANCE =
-            new DeploymentEntry(new DescriptorProperties(true));
+            new DeploymentEntry(new Configuration());
 
     private static final String DEPLOYMENT_RESPONSE_TIMEOUT = "response-timeout";
 
@@ -55,29 +56,33 @@ public class DeploymentEntry extends ConfigEntry {
 
     private static final String DEPLOYMENT_GATEWAY_PORT = "gateway-port";
 
-    private DeploymentEntry(DescriptorProperties properties) {
+    private DeploymentEntry(Configuration properties) {
         super(properties);
     }
 
     @Override
-    protected void validate(DescriptorProperties properties) {
-        properties.validateLong(DEPLOYMENT_RESPONSE_TIMEOUT, true, 0);
-        properties.validateString(DEPLOYMENT_GATEWAY_ADDRESS, true, 0);
-        properties.validateInt(DEPLOYMENT_GATEWAY_PORT, true, 0, 65535);
+    protected void validate(Configuration properties) {
+        ConfigurationValidater validater = ConfigurationValidater.builder().configuration(properties).build();
+        validater.validateLong(DEPLOYMENT_RESPONSE_TIMEOUT, true, 0);
+        validater.validateString(DEPLOYMENT_GATEWAY_ADDRESS, true, 0);
+        validater.validateInt(DEPLOYMENT_GATEWAY_PORT, true, 0, 65535);
     }
 
     public long getResponseTimeout() {
-        return properties.getOptionalLong(DEPLOYMENT_RESPONSE_TIMEOUT)
+        ConfigurationValidater validater = ConfigurationValidater.builder().configuration(configuration).build();
+        return validater.getOptionalLong(DEPLOYMENT_RESPONSE_TIMEOUT)
                 .orElseGet(() -> useDefaultValue(DEPLOYMENT_RESPONSE_TIMEOUT, 10000L));
     }
 
     public String getGatewayAddress() {
-        return properties.getOptionalString(DEPLOYMENT_GATEWAY_ADDRESS)
+        ConfigurationValidater validater = ConfigurationValidater.builder().configuration(configuration).build();
+        return validater.getOptionalString(DEPLOYMENT_GATEWAY_ADDRESS)
                 .orElseGet(() -> useDefaultValue(DEPLOYMENT_GATEWAY_ADDRESS, ""));
     }
 
     public int getGatewayPort() {
-        return properties.getOptionalInt(DEPLOYMENT_GATEWAY_PORT)
+        ConfigurationValidater validater = ConfigurationValidater.builder().configuration(configuration).build();
+        return validater.getOptionalInt(DEPLOYMENT_GATEWAY_PORT)
                 .orElseGet(() -> useDefaultValue(DEPLOYMENT_GATEWAY_PORT, 0));
     }
 
@@ -88,7 +93,7 @@ public class DeploymentEntry extends ConfigEntry {
     public CommandLine getCommandLine(Options commandLineOptions) throws Exception {
         final List<String> args = new ArrayList<>();
 
-        properties.asMap().forEach((k, v) -> {
+        configuration.toMap().forEach((k, v) -> {
             // only add supported options
             if (commandLineOptions.hasOption(k)) {
                 final Option o = commandLineOptions.getOption(k);
@@ -122,7 +127,8 @@ public class DeploymentEntry extends ConfigEntry {
     }
 
     public Map<String, String> asTopLevelMap() {
-        return properties.asPrefixedMap(DEPLOYMENT_ENTRY + '.');
+        ConfigurationValidater validater = ConfigurationValidater.builder().configuration(configuration).build();
+        return validater.asPrefixedMap(DEPLOYMENT_ENTRY + '.');
     }
 
     // --------------------------------------------------------------------------------------------
@@ -138,11 +144,7 @@ public class DeploymentEntry extends ConfigEntry {
     public static DeploymentEntry merge(DeploymentEntry deployment1, DeploymentEntry deployment2) {
         final Map<String, String> mergedProperties = new HashMap<>(deployment1.asMap());
         mergedProperties.putAll(deployment2.asMap());
-
-        final DescriptorProperties properties = new DescriptorProperties(true);
-        properties.putProperties(mergedProperties);
-
-        return new DeploymentEntry(properties);
+        return new DeploymentEntry(Configuration.fromMap(mergedProperties));
     }
 
     /**
@@ -151,7 +153,6 @@ public class DeploymentEntry extends ConfigEntry {
      */
     public static DeploymentEntry enrich(DeploymentEntry deployment, Map<String, String> prefixedProperties) {
         final Map<String, String> enrichedProperties = new HashMap<>(deployment.asMap());
-
         prefixedProperties.forEach((k, v) -> {
             final String normalizedKey = k.toLowerCase();
             if (k.startsWith(DEPLOYMENT_ENTRY + '.')) {
@@ -159,14 +160,11 @@ public class DeploymentEntry extends ConfigEntry {
             }
         });
 
-        final DescriptorProperties properties = new DescriptorProperties(true);
-        properties.putProperties(enrichedProperties);
-
-        return new DeploymentEntry(properties);
+        return new DeploymentEntry(Configuration.fromMap(enrichedProperties));
     }
 
     @Override
     public String toString() {
-        return "DeploymentEntry{" + "properties=" + properties + '}';
+        return "DeploymentEntry{" + "properties=" + configuration + '}';
     }
 }

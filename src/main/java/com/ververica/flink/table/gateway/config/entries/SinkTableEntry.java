@@ -18,6 +18,7 @@
 
 package com.ververica.flink.table.gateway.config.entries;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 
 /**
@@ -25,12 +26,12 @@ import org.apache.flink.table.descriptors.DescriptorProperties;
  */
 public class SinkTableEntry extends TableEntry {
 
-    SinkTableEntry(String name, DescriptorProperties properties) {
+    SinkTableEntry(String name, Configuration properties) {
         super(name, properties);
     }
 
     @Override
-    protected void validate(DescriptorProperties properties) {
+    protected void validate(Configuration properties) {
         // validation is performed by the discovered factory
     }
 }

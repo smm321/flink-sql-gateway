@@ -30,12 +30,12 @@ import com.ververica.flink.table.gateway.utils.SqlExecutionException;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.streaming.api.graph.StreamGraph;
+import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.bridge.java.internal.StreamTableEnvironmentImpl;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
-import org.apache.flink.table.planner.delegation.StreamExecutor;
-import org.apache.flink.table.planner.utils.ExecutorUtils;
+import org.apache.flink.table.planner.delegation.DefaultExecutor;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.types.Row;
 
@@ -78,9 +78,10 @@ public class ValidateStatementSetOperation implements NonJobOperation {
 			FlinkUtil.setConfig(param, impl);
 			List<Transformation<?>> transformations = impl.getPlanner().translate(operations);
 			StreamGraph streamGraph;
-			if (context.getExecutor() instanceof StreamExecutor){
-				StreamExecutor executor = (StreamExecutor)context.getExecutor();
-				streamGraph = ExecutorUtils.generateStreamGraph(executor.getExecutionEnvironment(), transformations);
+			if (context.getExecutor() instanceof DefaultExecutor){
+				DefaultExecutor executor = (DefaultExecutor)context.getExecutor();
+				streamGraph = new StreamGraphGenerator(transformations, executor.getExecutionEnvironment().getConfig(),
+						executor.getExecutionEnvironment().getCheckpointConfig()).generate();
 				if (context.getFlinkConfig().containsKey(PipelineOptions.NAME.key())){
 					streamGraph.setJobName(context.getFlinkConfig().getString(PipelineOptions.NAME));
 				}

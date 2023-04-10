@@ -57,25 +57,18 @@ session:
 
 # Define tables here such as sources, sinks, views, or temporal tables.
 
-tables: [] # empty list
-# A typical table source definition looks like:
-# - name: ...
-#   type: source-table
-#   connector: ...
-#   format: ...
-#   schema: ...
-
+tables:  # empty list
 # A typical view definition looks like:
 # - name: ...
 #   type: view
 #   query: "SELECT ..."
 
 # A typical temporal table definition looks like:
-# - name: ...
-#   type: temporal-table
-#   history-table: ...
-#   time-attribute: ...
-#   primary-key: ...
+  - name: my-temporal table
+    type: temporal-table
+    history-table: rt_skn_in_skn_msg
+    time-attribute: createTimestamp
+    primary-key: home_city_code
 
 
 #==============================================================================
@@ -98,12 +91,13 @@ functions: [] # empty list
 
 # Define catalogs here.
 
-catalogs: [] # empty list
-# A typical catalog definition looks like:
-#  - name: myhive
-#    type: hive
-#    hive-conf-dir: /opt/hive_conf/
-#    default-database: ...
+catalogs:
+  # A typical catalog definition looks like:
+  - name: flink_catalog
+    type: hive
+    hive-conf-dir: /etc/hive/hadoop3_conf
+    default-database: dev_realtime
+    hive-version: 3.1.0
 
 #==============================================================================
 # Modules
@@ -127,9 +121,9 @@ execution:
   # maximum parallelism
   max-parallelism: 128
   # current catalog ('default_catalog' by default)
-  current-catalog: default_catalog
+  current-catalog: flink_catalog
   # current database of the current catalog (default database of the catalog by default)
-  current-database: default_database
+  current-database: sit_realtime
 
 #==============================================================================
 # Configuration options

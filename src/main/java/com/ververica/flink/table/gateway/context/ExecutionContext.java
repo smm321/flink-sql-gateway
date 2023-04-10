@@ -20,7 +20,9 @@ package com.ververica.flink.table.gateway.context;
 
 import com.ververica.flink.table.gateway.config.Environment;
 import com.ververica.flink.table.gateway.config.entries.DeploymentEntry;
-import com.ververica.flink.table.gateway.config.entries.ExecutionEntry;
+import com.ververica.flink.table.gateway.config.entries.SinkTableEntry;
+import com.ververica.flink.table.gateway.config.entries.SourceSinkTableEntry;
+import com.ververica.flink.table.gateway.config.entries.SourceTableEntry;
 import com.ververica.flink.table.gateway.config.entries.TemporalTableEntry;
 import com.ververica.flink.table.gateway.config.entries.ViewEntry;
 import com.ververica.flink.table.gateway.utils.SqlExecutionException;
@@ -42,42 +44,38 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.Expressions;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.api.bridge.java.BatchTableEnvironment;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
-import org.apache.flink.table.api.bridge.java.internal.BatchTableEnvironmentImpl;
 import org.apache.flink.table.api.bridge.java.internal.StreamTableEnvironmentImpl;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
+import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.table.delegation.ExecutorFactory;
 import org.apache.flink.table.delegation.Planner;
-import org.apache.flink.table.delegation.PlannerFactory;
-import org.apache.flink.table.descriptors.CoreModuleDescriptorValidator;
-import org.apache.flink.table.factories.BatchTableSinkFactory;
-import org.apache.flink.table.factories.BatchTableSourceFactory;
-import org.apache.flink.table.factories.ComponentFactoryService;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.ModuleFactory;
+import org.apache.flink.table.factories.PlannerFactoryUtil;
 import org.apache.flink.table.factories.TableFactoryService;
-import org.apache.flink.table.factories.TableSinkFactory;
-import org.apache.flink.table.factories.TableSourceFactory;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.FunctionDefinition;
-import org.apache.flink.table.functions.FunctionService;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.TableFunction;
-import org.apache.flink.table.functions.UserDefinedFunction;
+import org.apache.flink.table.module.CoreModuleFactory;
 import org.apache.flink.table.module.Module;
 import org.apache.flink.table.module.ModuleManager;
+import org.apache.flink.table.resource.ResourceManager;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.FlinkUserCodeClassLoaders;
+import org.apache.flink.util.MutableURLClassLoader;
 import org.apache.flink.util.TemporaryClassLoaderContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -85,6 +83,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 import java.lang.reflect.Method;
 import java.net.URL;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -232,18 +231,6 @@ public class ExecutionContext<ClusterID> {
         return clusterClientFactory;
     }
 
-    public Pipeline createPipeline(String name) {
-        return wrapClassLoader(() -> {
-            if (streamExecEnv != null) {
-                StreamTableEnvironmentImpl streamTableEnv = (StreamTableEnvironmentImpl) tableEnv;
-                return streamTableEnv.getPipeline(name);
-            } else {
-                BatchTableEnvironmentImpl batchTableEnv = (BatchTableEnvironmentImpl) tableEnv;
-                return batchTableEnv.getPipeline(name);
-            }
-        });
-    }
-
     public Pipeline createPipeline(String name, List<Transformation<?>> operations) {
         return wrapClassLoader(() -> {
             return executor.createPipeline(operations, tableEnv.getConfig(), name);
@@ -346,33 +333,33 @@ public class ExecutionContext<ClusterID> {
 //		return factory.createCatalog(name, catalogProperties);
     }
 
-    private static TableSource<?> createTableSource(ExecutionEntry execution, Map<String, String> sourceProperties,
-                                                    ClassLoader classLoader) {
-        if (execution.isStreamingPlanner()) {
-            final TableSourceFactory<?> factory = (TableSourceFactory<?>)
-                    TableFactoryService.find(TableSourceFactory.class, sourceProperties, classLoader);
-            return factory.createTableSource(sourceProperties);
-        } else if (execution.isBatchPlanner()) {
-            final BatchTableSourceFactory<?> factory = (BatchTableSourceFactory<?>)
-                    TableFactoryService.find(BatchTableSourceFactory.class, sourceProperties, classLoader);
-            return factory.createBatchTableSource(sourceProperties);
-        }
-        throw new SqlExecutionException("Unsupported execution type for sources.");
-    }
+//    private static TableSource<?> createTableSource(ExecutionEntry execution, Map<String, String> sourceProperties,
+//                                                    ClassLoader classLoader) {
+//        if (execution.isStreamingPlanner()) {
+//            final TableSourceFactory<?> factory = (TableSourceFactory<?>)
+//                    TableFactoryService.find(TableSourceFactory.class, sourceProperties, classLoader);
+//            return factory.createTableSource(sourceProperties);
+//        } else if (execution.isBatchPlanner()) {
+//            final BatchTableSourceFactory<?> factory = (BatchTableSourceFactory<?>)
+//                    TableFactoryService.find(BatchTableSourceFactory.class, sourceProperties, classLoader);
+//            return factory.createBatchTableSource(sourceProperties);
+//        }
+//        throw new SqlExecutionException("Unsupported execution type for sources.");
+//    }
 
-    private static TableSink<?> createTableSink(ExecutionEntry execution, Map<String, String> sinkProperties,
-                                                ClassLoader classLoader) {
-        if (execution.isStreamingPlanner()) {
-            final TableSinkFactory<?> factory = (TableSinkFactory<?>)
-                    TableFactoryService.find(TableSinkFactory.class, sinkProperties, classLoader);
-            return factory.createTableSink(sinkProperties);
-        } else if (execution.isBatchPlanner()) {
-            final BatchTableSinkFactory<?> factory = (BatchTableSinkFactory<?>)
-                    TableFactoryService.find(BatchTableSinkFactory.class, sinkProperties, classLoader);
-            return factory.createBatchTableSink(sinkProperties);
-        }
-        throw new SqlExecutionException("Unsupported execution type for sinks.");
-    }
+//    private static TableSink<?> createTableSink(ExecutionEntry execution, Map<String, String> sinkProperties,
+//                                                ClassLoader classLoader) {
+//        if (execution.isStreamingPlanner()) {
+//            final TableSinkFactory<?> factory = (TableSinkFactory<?>)
+//                    TableFactoryService.find(TableSinkFactory.class, sinkProperties, classLoader);
+//            return factory.createTableSink(sinkProperties);
+//        } else if (execution.isBatchPlanner()) {
+//            final BatchTableSinkFactory<?> factory = (BatchTableSinkFactory<?>)
+//                    TableFactoryService.find(BatchTableSinkFactory.class, sinkProperties, classLoader);
+//            return factory.createBatchTableSink(sinkProperties);
+//        }
+//        throw new SqlExecutionException("Unsupported execution type for sinks.");
+//    }
 
     private TableEnvironment createStreamTableEnvironment(
             StreamExecutionEnvironment env,
@@ -382,34 +369,43 @@ public class ExecutionContext<ClusterID> {
             CatalogManager catalogManager,
             ModuleManager moduleManager,
             FunctionCatalog functionCatalog) {
-        final Map<String, String> plannerProperties = settings.toPlannerProperties();
-        final Planner planner = ComponentFactoryService.find(PlannerFactory.class, plannerProperties)
-                .create(plannerProperties, executor, config, functionCatalog, catalogManager);
+
+        final MutableURLClassLoader userClassLoader =
+                FlinkUserCodeClassLoaders.create(
+                        new URL[0], settings.getUserClassLoader(), settings.getConfiguration());
+        final Planner planner = PlannerFactoryUtil.createPlanner(executor,
+                config, userClassLoader, moduleManager, catalogManager, functionCatalog);
+
+        final ResourceManager resourceManager =
+                new ResourceManager(settings.getConfiguration(), userClassLoader);
 
         return new StreamTableEnvironmentImpl(
                 catalogManager,
                 moduleManager,
+                resourceManager,
                 functionCatalog,
                 config,
                 env,
                 planner,
                 executor,
-                settings.isStreamingMode(),
-                classLoader);
+                settings.isStreamingMode()
+                );
     }
 
     private static Executor lookupExecutor(
-            Map<String, String> executorProperties,
-            StreamExecutionEnvironment executionEnvironment) {
+            StreamExecutionEnvironment executionEnvironment, ClassLoader classLoader) {
         try {
-            ExecutorFactory executorFactory = ComponentFactoryService.find(ExecutorFactory.class, executorProperties);
-            Method createMethod = executorFactory.getClass()
-                    .getMethod("create", Map.class, StreamExecutionEnvironment.class);
+            final ExecutorFactory executorFactory =
+                    FactoryUtil.discoverFactory(
+                            classLoader,
+                            ExecutorFactory.class,
+                            ExecutorFactory.DEFAULT_IDENTIFIER);
+            final Method createMethod =
+                    executorFactory
+                            .getClass()
+                            .getMethod("create", StreamExecutionEnvironment.class);
 
-            return (Executor) createMethod.invoke(
-                    executorFactory,
-                    executorProperties,
-                    executionEnvironment);
+            return (Executor) createMethod.invoke(executorFactory, executionEnvironment);
         } catch (Exception e) {
             throw new TableException(
                     "Could not instantiate the executor. Make sure a planner module is on the classpath",
@@ -420,7 +416,7 @@ public class ExecutionContext<ClusterID> {
     private void initializeTableEnvironment(@Nullable SessionState sessionState) {
         final EnvironmentSettings settings = environment.getExecution().getEnvironmentSettings();
         // Step 0.0 Initialize the table configuration.
-        final TableConfig config = new TableConfig();
+        final TableConfig config = TableConfig.getDefault();
         environment.getConfiguration().asMap().forEach((k, v) ->
                 config.getConfiguration().setString(k, v));
         final boolean noInheritedState = sessionState == null;
@@ -440,9 +436,15 @@ public class ExecutionContext<ClusterID> {
                                     settings.getBuiltInCatalogName(),
                                     settings.getBuiltInDatabaseName()))
                     .build();
+
             // Step 1.2 Initialize the FunctionCatalog if required.
-            functionCatalog = new FunctionCatalog(config, catalogManager, moduleManager);
-            // Step 1.4 Set up session state.
+            final MutableURLClassLoader mutableURLClassLoader =
+                    FlinkUserCodeClassLoaders.create(
+                            new URL[0], settings.getUserClassLoader(), settings.getConfiguration());
+            final ResourceManager resourceManager =
+                    new ResourceManager(settings.getConfiguration(), mutableURLClassLoader);
+            functionCatalog = new FunctionCatalog(config, resourceManager, catalogManager, moduleManager);
+            // Step 1.3 Set up session state.
             this.sessionState = SessionState.of(catalogManager, moduleManager, functionCatalog);
 
             // Must initialize the table environment before actually the
@@ -458,7 +460,7 @@ public class ExecutionContext<ClusterID> {
             );
             if (!modules.isEmpty()) {
                 // unload core module first to respect whatever users configure
-                tableEnv.unloadModule(CoreModuleDescriptorValidator.MODULE_TYPE_CORE);
+                tableEnv.unloadModule(CoreModuleFactory.IDENTIFIER);
                 modules.forEach(tableEnv::loadModule);
             }
 
@@ -500,8 +502,7 @@ public class ExecutionContext<ClusterID> {
             streamExecEnv = createStreamExecutionEnvironment();
             execEnv = null;
 
-            final Map<String, String> executorProperties = settings.toExecutorProperties();
-            executor = lookupExecutor(executorProperties, streamExecEnv);
+            executor = lookupExecutor(streamExecEnv, classLoader);
             tableEnv = createStreamTableEnvironment(
                     streamExecEnv,
                     settings,
@@ -510,15 +511,6 @@ public class ExecutionContext<ClusterID> {
                     catalogManager,
                     moduleManager,
                     functionCatalog);
-        } else if (environment.getExecution().isBatchPlanner()) {
-            streamExecEnv = null;
-            execEnv = createExecutionEnvironment();
-            executor = null;
-            tableEnv = new BatchTableEnvironmentImpl(
-                    execEnv,
-                    config,
-                    catalogManager,
-                    moduleManager);
         } else {
             throw new SqlExecutionException("Unsupported execution type specified.");
         }
@@ -532,25 +524,25 @@ public class ExecutionContext<ClusterID> {
             environment.getCatalogs().forEach((name, entry) -> {
                 Catalog catalog = createCatalog(name, entry.asMap(), classLoader);
                 tableEnv.registerCatalog(name, catalog);
+                tableEnv.useCatalog(name);
             });
-//			HiveCatalog hive = new HiveCatalog("flinkcatalog", "uat_realtime", "/etc/hive/conf");
-//			tableEnv.registerCatalog("flinkcatalog", hive);
         });
 
+        // As all of the tables are stored in hive catalog, we don't need to this so far.
         //--------------------------------------------------------------------------------------------------------------
         // Step.2 create table sources & sinks, and register them.
         //--------------------------------------------------------------------------------------------------------------
-        Map<String, TableSource<?>> tableSources = new HashMap<>();
-        Map<String, TableSink<?>> tableSinks = new HashMap<>();
-        environment.getTables().forEach((name, entry) -> {
+//        Map<String, TableSource<?>> tableSources = new HashMap<>();
+//        Map<String, TableSink<?>> tableSinks = new HashMap<>();
+//        environment.getTables().forEach((name, entry) -> {
 //			if (entry instanceof SourceTableEntry || entry instanceof SourceSinkTableEntry) {
 //				tableSources.put(name, createTableSource(environment.getExecution(), entry.asMap(), classLoader));
 //			}
 //			if (entry instanceof SinkTableEntry || entry instanceof SourceSinkTableEntry) {
 //				tableSinks.put(name, createTableSink(environment.getExecution(), entry.asMap(), classLoader));
 //			}
-            tableEnv.createTemporaryView(name, tableEnv.scan(name));
-        });
+//            tableEnv.createTemporaryView(name, tableEnv.scan(name));
+//        });
 
         // register table sources
 //		tableSources.forEach((k, v) -> {
@@ -613,43 +605,29 @@ public class ExecutionContext<ClusterID> {
     }
 
     private void registerFunctions() {
-        Map<String, FunctionDefinition> functions = new LinkedHashMap<>();
-        environment.getFunctions().forEach((name, entry) -> {
-            final UserDefinedFunction function = FunctionService
-                    .createFunction(entry.getDescriptor(), classLoader, false);
-            functions.put(name, function);
-        });
-        registerFunctions(functions);
+        //todo
+//        Map<String, FunctionDefinition> functions = new LinkedHashMap<>();
+//        environment.getFunctions().forEach((name, entry) -> {
+//            final UserDefinedFunction function = FunctionService
+//                    .createFunction(entry.getDescriptor(), classLoader, false);
+//            functions.put(name, function);
+//        });
+//        registerFunctions(functions);
     }
 
     private void registerFunctions(Map<String, FunctionDefinition> functions) {
-        if (tableEnv instanceof StreamTableEnvironment) {
-            StreamTableEnvironment streamTableEnvironment = (StreamTableEnvironment) tableEnv;
-            functions.forEach((k, v) -> {
-                if (v instanceof ScalarFunction) {
-                    streamTableEnvironment.registerFunction(k, (ScalarFunction) v);
-                } else if (v instanceof AggregateFunction) {
-                    streamTableEnvironment.registerFunction(k, (AggregateFunction<?, ?>) v);
-                } else if (v instanceof TableFunction) {
-                    streamTableEnvironment.registerFunction(k, (TableFunction<?>) v);
-                } else {
-                    throw new SqlExecutionException("Unsupported function type: " + v.getClass().getName());
-                }
-            });
-        } else {
-            BatchTableEnvironment batchTableEnvironment = (BatchTableEnvironment) tableEnv;
-            functions.forEach((k, v) -> {
-                if (v instanceof ScalarFunction) {
-                    batchTableEnvironment.registerFunction(k, (ScalarFunction) v);
-                } else if (v instanceof AggregateFunction) {
-                    batchTableEnvironment.registerFunction(k, (AggregateFunction<?, ?>) v);
-                } else if (v instanceof TableFunction) {
-                    batchTableEnvironment.registerFunction(k, (TableFunction<?>) v);
-                } else {
-                    throw new SqlExecutionException("Unsupported function type: " + v.getClass().getName());
-                }
-            });
-        }
+        StreamTableEnvironment streamTableEnvironment = (StreamTableEnvironment) tableEnv;
+        functions.forEach((k, v) -> {
+            if (v instanceof ScalarFunction) {
+                streamTableEnvironment.createTemporarySystemFunction(k, (ScalarFunction) v);
+            } else if (v instanceof AggregateFunction) {
+                streamTableEnvironment.createTemporarySystemFunction(k, (AggregateFunction<?, ?>) v);
+            } else if (v instanceof TableFunction) {
+                streamTableEnvironment.createTemporarySystemFunction(k, (TableFunction<?>) v);
+            } else {
+                throw new SqlExecutionException("Unsupported function type: " + v.getClass().getName());
+            }
+        });
     }
 
     private void registerView(ViewEntry viewEntry) {
@@ -664,17 +642,12 @@ public class ExecutionContext<ClusterID> {
 
     private void registerTemporalTable(TemporalTableEntry temporalTableEntry) {
         try {
-            final Table table = tableEnv.scan(temporalTableEntry.getHistoryTable());
+            final Table table = tableEnv.from(temporalTableEntry.getHistoryTable());
             final TableFunction<?> function = table.createTemporalTableFunction(
-                    temporalTableEntry.getTimeAttribute(),
-                    String.join(",", temporalTableEntry.getPrimaryKeyFields()));
-            if (tableEnv instanceof StreamTableEnvironment) {
-                StreamTableEnvironment streamTableEnvironment = (StreamTableEnvironment) tableEnv;
-                streamTableEnvironment.registerFunction(temporalTableEntry.getName(), function);
-            } else {
-                BatchTableEnvironment batchTableEnvironment = (BatchTableEnvironment) tableEnv;
-                batchTableEnvironment.registerFunction(temporalTableEntry.getName(), function);
-            }
+                    Expressions.$(temporalTableEntry.getTimeAttribute()),
+                    Expressions.$(String.join(",", temporalTableEntry.getPrimaryKeyFields())));
+            StreamTableEnvironment streamTableEnvironment = (StreamTableEnvironment) tableEnv;
+            streamTableEnvironment.createTemporarySystemFunction(temporalTableEntry.getName(), function);
         } catch (Exception e) {
             throw new SqlExecutionException(
                     "Invalid temporal table '" + temporalTableEntry.getName() + "' over table '" +
