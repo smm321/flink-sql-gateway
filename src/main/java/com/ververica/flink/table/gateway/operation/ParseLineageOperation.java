@@ -28,15 +28,14 @@ import com.ververica.flink.table.gateway.rest.result.ResultSet;
 import com.ververica.flink.table.gateway.utils.FlinkUtil;
 import com.ververica.flink.table.gateway.utils.SqlExecutionException;
 import org.apache.calcite.config.Lex;
+import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelTrait;
 import org.apache.calcite.plan.hep.HepMatchOrder;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.metadata.RelColumnOrigin;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
-import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.sql.parser.SqlParser;
-import org.apache.calcite.tools.RuleSet;
 import org.apache.calcite.tools.RuleSets;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -51,11 +50,9 @@ import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.ObjectIdentifier;
-//import org.apache.flink.table.operations.CatalogSinkModifyOperation;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
-//import org.apache.flink.table.planner.calcite.SqlExprToRexConverterFactory;
 import org.apache.flink.table.operations.SinkModifyOperation;
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
 import org.apache.flink.table.planner.calcite.RexFactory;
@@ -71,7 +68,7 @@ import org.apache.flink.table.planner.plan.optimize.program.FlinkVolcanoProgramB
 import org.apache.flink.table.planner.plan.optimize.program.HEP_RULES_EXECUTION_TYPE;
 import org.apache.flink.table.planner.plan.optimize.program.StreamOptimizeContext;
 import org.apache.flink.table.planner.plan.rules.FlinkStreamRuleSets;
-import org.apache.flink.table.planner.plan.rules.logical.WindowPropertiesRules;
+import org.apache.flink.table.planner.plan.rules.logical.EventTimeTemporalJoinRewriteRule;
 import org.apache.flink.table.planner.plan.trait.MiniBatchInterval;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.types.Row;
@@ -168,18 +165,17 @@ public class ParseLineageOperation implements NonJobOperation {
 						.addProgram(new FlinkDecorrelateProgram(), "")
 						.build());
 
-		// convert time indicators
-		chainedProgram.addLast(TIME_INDICATOR, new FlinkRelTimeIndicatorProgram());
-//
+//		// convert time indicators
+//		chainedProgram.addLast(TIME_INDICATOR, new FlinkRelTimeIndicatorProgram());
+////
 //		// default rewrite, includes: predicate simplification, expression reduction, window
 //		// properties rewrite, etc.
-		RuleSet rules = RuleSets.ofList(WindowPropertiesRules.WINDOW_PROPERTIES_RULE(), WindowPropertiesRules.WINDOW_PROPERTIES_HAVING_RULE());
 		chainedProgram.addLast(
 				DEFAULT_REWRITE,
 				FlinkHepRuleSetProgramBuilder.newBuilder()
 						.setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE())
 						.setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
-						.add(rules)
+						.add(FlinkStreamRuleSets.DEFAULT_REWRITE_RULES())
 						.build());
 
 		chainedProgram.addLast(
@@ -276,11 +272,34 @@ public class ParseLineageOperation implements NonJobOperation {
 				.setRequiredOutputTraits(relTraits)
 				.build());
 
-		chainedProgram.addLast(LOGICAL_REWRITE, FlinkHepRuleSetProgramBuilder.newBuilder()
-				.setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE())
-				.setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
-				.add(FlinkStreamRuleSets.LOGICAL_REWRITE())
-				.build());
+
+
+		chainedProgram.addLast(LOGICAL_REWRITE, FlinkGroupProgramBuilder.newBuilder()
+				.addProgram(
+						FlinkHepRuleSetProgramBuilder.newBuilder()
+						.setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE())
+						.setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
+						.add(FlinkStreamRuleSets.LOGICAL_REWRITE())
+						.build(), "")
+				.addProgram(
+						FlinkHepRuleSetProgramBuilder.newBuilder()
+						.setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE())
+						.setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
+						.add(RuleSets.ofList(new RelOptRule[]{
+								EventTimeTemporalJoinRewriteRule.Config.JOIN_CALC_SNAPSHOT_CALC_WMA_CALC_TS.toRule(),
+								EventTimeTemporalJoinRewriteRule.Config.JOIN_CALC_SNAPSHOT_CALC_WMA_TS.toRule(),
+								EventTimeTemporalJoinRewriteRule.Config.JOIN_CALC_SNAPSHOT_WMA_CALC_TS.toRule(),
+								EventTimeTemporalJoinRewriteRule.Config.JOIN_CALC_SNAPSHOT_WMA_TS.toRule(),
+								EventTimeTemporalJoinRewriteRule.Config.JOIN_SNAPSHOT_CALC_WMA_CALC_TS.toRule(),
+								EventTimeTemporalJoinRewriteRule.Config.JOIN_SNAPSHOT_CALC_WMA_TS.toRule(),
+								EventTimeTemporalJoinRewriteRule.Config.JOIN_SNAPSHOT_WMA_CALC_TS.toRule(),
+								EventTimeTemporalJoinRewriteRule.Config.JOIN_SNAPSHOT_WMA_TS.toRule()}))
+						.build(), "")
+				.build()
+		);
+
+		// convert time indicators
+		chainedProgram.addLast(TIME_INDICATOR, new FlinkRelTimeIndicatorProgram());
 	}
 
 	@Override

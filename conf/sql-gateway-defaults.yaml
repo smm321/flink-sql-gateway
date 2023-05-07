@@ -96,7 +96,7 @@ catalogs:
   - name: flink_catalog
     type: hive
     hive-conf-dir: /etc/hive/hadoop3_conf
-    default-database: dev_realtime
+    default-database: sit_realtime
     hive-version: 3.1.0
 
 #==============================================================================
