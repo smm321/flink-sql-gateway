@@ -50,24 +50,25 @@ public class ShowCreateTableOperation implements NonJobOperation{
         Catalog catalog = tableEnv.getCatalog(tableEnv.getCurrentCatalog())
                 .orElseThrow(
                         //impossible to be here
-                        () -> new SqlExecutionException("No catalog with this name : " + tableEnv.getCurrentCatalog() + " could be found.")
+                        () -> new SqlExecutionException("No catalog with this name : " +
+                                tableEnv.getCurrentCatalog() + " could be found.")
                 );
         try {
             ResolvedSchema schema = context.wrapClassLoader(() -> tableEnv.from(tableName).getResolvedSchema());
-            //--------------------------------------------------------------------------------------------------------------
+            //----------------------------------------------------------------------------------------------------------
             // Step.1 get column info
-            //--------------------------------------------------------------------------------------------------------------
+            //----------------------------------------------------------------------------------------------------------
             List<Column> fieldInfo = schema.getColumns();
-            //--------------------------------------------------------------------------------------------------------------
+            //----------------------------------------------------------------------------------------------------------
             // Step.2 get watermark
-            //--------------------------------------------------------------------------------------------------------------
+            //----------------------------------------------------------------------------------------------------------
             Map<String, WatermarkSpec> watermark = schema
                     .getWatermarkSpecs()
                     .stream()
                     .collect(Collectors.toMap(WatermarkSpec::getRowtimeAttribute, Function.identity()));
-            //--------------------------------------------------------------------------------------------------------------
+            //----------------------------------------------------------------------------------------------------------
             // Step.3 get primary keys with String format
-            //--------------------------------------------------------------------------------------------------------------
+            //----------------------------------------------------------------------------------------------------------
             StringBuffer primaryKey = new StringBuffer();
             schema.getPrimaryKey().ifPresent(o -> {
                 String typeString;
@@ -86,14 +87,15 @@ public class ShowCreateTableOperation implements NonJobOperation{
                                 .collect(Collectors.joining(", ")),
                         o.isEnforced() ? "" : " NOT ENFORCED"));
             });
-            //--------------------------------------------------------------------------------------------------------------
+            //----------------------------------------------------------------------------------------------------------
             // Step.4 get table comment with String format
-            //--------------------------------------------------------------------------------------------------------------
-            CatalogBaseTable catalogBaseTable = catalog.getTable(new ObjectPath(tableEnv.getCurrentDatabase(), tableName));
+            //----------------------------------------------------------------------------------------------------------
+            CatalogBaseTable catalogBaseTable =
+                    catalog.getTable(new ObjectPath(tableEnv.getCurrentDatabase(), tableName));
             String comment = catalogBaseTable.getComment();
-            //--------------------------------------------------------------------------------------------------------------
+            //----------------------------------------------------------------------------------------------------------
             // Step.5 get partition column
-            //--------------------------------------------------------------------------------------------------------------
+            //----------------------------------------------------------------------------------------------------------
             List<String> partitionList = new ArrayList<>();
             if (catalog instanceof HiveCatalog){
                 HiveCatalog hiveCatalog = (HiveCatalog)catalog;
@@ -104,9 +106,9 @@ public class ShowCreateTableOperation implements NonJobOperation{
                             }
                         });
             }
-            //--------------------------------------------------------------------------------------------------------------
+            //----------------------------------------------------------------------------------------------------------
             // Step.6 get with info
-            //--------------------------------------------------------------------------------------------------------------
+            //----------------------------------------------------------------------------------------------------------
             Map<String, String> withMap = catalogBaseTable.getOptions();
 
             return ResultSet.builder()
@@ -117,7 +119,8 @@ public class ShowCreateTableOperation implements NonJobOperation{
                     .build();
         } catch (Exception e){
             e.printStackTrace();
-            throw new SqlExecutionException(String.format("show create table : %s failed, Caused by %s", tableName, e.getMessage()));
+            throw new SqlExecutionException(String.format("show create table : %s failed, Caused by %s",
+                    tableName, e.getMessage()));
         }
     }
 
@@ -135,7 +138,8 @@ public class ShowCreateTableOperation implements NonJobOperation{
                 } else {
                     colType = StringUtils.removeEnd(colType, " NOT NULL");
                 }
-                stringBuffer.append(EncodingUtils.escapeIdentifier(v.getName())).append(" ").append(colType).append(", ");
+                stringBuffer.append(EncodingUtils.escapeIdentifier(v.getName()))
+                        .append(" ").append(colType).append(", ");
             }
             else if (v instanceof Column.ComputedColumn){
                 //we can't use ComputedColumn.toString() here
