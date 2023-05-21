@@ -111,8 +111,10 @@ public class ParseLineageOperation implements NonJobOperation {
 			operations.add((ModifyOperation)op);
 
 			SinkModifyOperation sinkModifyOperation = (SinkModifyOperation)op;
-			lineageResult.setSinkDbName(sinkModifyOperation.getContextResolvedTable().getIdentifier().getDatabaseName());
-			lineageResult.setSinkTableName(sinkModifyOperation.getContextResolvedTable().getIdentifier().getObjectName());
+			lineageResult.setSinkDbName(sinkModifyOperation.getContextResolvedTable().getIdentifier()
+					.getDatabaseName());
+			lineageResult.setSinkTableName(sinkModifyOperation.getContextResolvedTable().getIdentifier()
+					.getObjectName());
 			//todo extract partition information in the future
 			PlannerQueryOperation queryOperation = (PlannerQueryOperation)sinkModifyOperation.getChild();
 			RelNode relNode = queryOperation.getCalciteTree();
@@ -130,12 +132,14 @@ public class ParseLineageOperation implements NonJobOperation {
 						List<Tuple3<String, String, String>> list = element.get(sinkColumn.get(finalI));
 						list.add(Tuple3.of(o.getOriginTable().getQualifiedName().get(1),
 								           o.getOriginTable().getQualifiedName().get(2),
-								           o.getOriginTable().getRowType().getFieldNames().get(o.getOriginColumnOrdinal())));
+								           o.getOriginTable().getRowType().getFieldNames()
+												   .get(o.getOriginColumnOrdinal())));
 					} else {
 						element.put(sinkColumn.get(finalI),
 								Stream.of(Tuple3.of(o.getOriginTable().getQualifiedName().get(1),
 										  o.getOriginTable().getQualifiedName().get(2),
-										  o.getOriginTable().getRowType().getFieldNames().get(o.getOriginColumnOrdinal()))
+										  o.getOriginTable().getRowType().getFieldNames()
+												  .get(o.getOriginColumnOrdinal()))
 										).collect(Collectors.toList())
 								);
 					}
