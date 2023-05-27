@@ -20,15 +20,12 @@ package com.ververica.flink.table.gateway.config;
 
 import com.ververica.flink.table.gateway.config.entries.CatalogEntry;
 import com.ververica.flink.table.gateway.context.ExecutionContext;
-import com.ververica.flink.table.gateway.source.dummy.DummyTableSourceFactory;
-import com.ververica.flink.table.gateway.utils.EnvironmentFileUtil;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
@@ -37,6 +34,7 @@ import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.factories.CatalogFactory;
+import org.apache.flink.util.FlinkUserCodeClassLoaders;
 import org.apache.flink.util.StringUtils;
 
 import org.apache.commons.cli.Options;

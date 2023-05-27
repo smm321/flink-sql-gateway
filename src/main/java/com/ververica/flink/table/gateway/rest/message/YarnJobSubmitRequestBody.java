@@ -33,16 +33,27 @@ import javax.annotation.Nullable;
 public class YarnJobSubmitRequestBody implements RequestBody {
     private static final String FIELD_NAME_CMD = "cmd";
 
+    private static final String FIELD_NAME_DML = "dml";
+
     @JsonProperty(FIELD_NAME_CMD)
-    @Nullable
     private final String cmd;
 
-    public YarnJobSubmitRequestBody(@JsonProperty(FIELD_NAME_CMD) String cmd) {
+    @JsonProperty(FIELD_NAME_DML)
+    private final String dml;
+
+    public YarnJobSubmitRequestBody(@JsonProperty(FIELD_NAME_CMD) String cmd,
+                                    @JsonProperty(FIELD_NAME_DML) String dml) {
         this.cmd = cmd;
+        this.dml = dml;
     }
 
     @Nullable
     public String getCmd() {
         return cmd;
+    }
+
+    @Nullable
+    public String getDml() {
+        return dml;
     }
 }
