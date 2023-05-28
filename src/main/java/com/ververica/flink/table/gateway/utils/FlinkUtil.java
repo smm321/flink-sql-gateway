@@ -172,8 +172,8 @@ public class FlinkUtil {
 
     private static SqlBasicCall updateSqlBasicCallByHints(SqlBasicCall originalSqlBasicCall, Map<String, String> hintsMap){
         SqlNode[] newOperands = {
-                                    updateSqlBasicCallSqlNodeByHints(originalSqlBasicCall.getOperands()[0], hintsMap),
-                                    updateSqlBasicCallSqlNodeByHints(originalSqlBasicCall.getOperands()[1], hintsMap)
+                                    updateSqlBasicCallSqlNodeByHints(originalSqlBasicCall.getOperandList().get(0), hintsMap),
+                                    updateSqlBasicCallSqlNodeByHints(originalSqlBasicCall.getOperandList().get(0), hintsMap)
                                 };
         SqlBasicCall newSqlBasicCall = new SqlBasicCall(originalSqlBasicCall.getOperator(),
                 newOperands,

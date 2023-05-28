@@ -41,6 +41,7 @@ import org.apache.flink.sql.parser.impl.FlinkSqlParserImpl;
 import org.apache.flink.sql.parser.validate.FlinkSqlConformance;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.bridge.java.internal.StreamTableEnvironmentImpl;
+import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
@@ -147,7 +148,7 @@ public class ParseLineageOperation implements NonJobOperation {
 				lineageResult.getSourceColumn().add(element);
 			}
 
-			for (String func : context.getFunctionCatalog().getUserDefinedFunctions()){
+			for (String func : context.getFunctionCatalog().getUserDefinedFunctions()) {
 				context.getFunctionCatalog().dropTempCatalogFunction(ObjectIdentifier.of(
 						context.getTableEnvironment().getCurrentCatalog(),
 						context.getTableEnvironment().getCurrentDatabase(), func),

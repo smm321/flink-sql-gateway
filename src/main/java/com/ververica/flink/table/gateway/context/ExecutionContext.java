@@ -20,9 +20,6 @@ package com.ververica.flink.table.gateway.context;
 
 import com.ververica.flink.table.gateway.config.Environment;
 import com.ververica.flink.table.gateway.config.entries.DeploymentEntry;
-import com.ververica.flink.table.gateway.config.entries.SinkTableEntry;
-import com.ververica.flink.table.gateway.config.entries.SourceSinkTableEntry;
-import com.ververica.flink.table.gateway.config.entries.SourceTableEntry;
 import com.ververica.flink.table.gateway.config.entries.TemporalTableEntry;
 import com.ververica.flink.table.gateway.config.entries.ViewEntry;
 import com.ververica.flink.table.gateway.utils.SqlExecutionException;
@@ -55,7 +52,6 @@ import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
-import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.table.delegation.ExecutorFactory;
 import org.apache.flink.table.delegation.Planner;
@@ -71,8 +67,6 @@ import org.apache.flink.table.module.CoreModuleFactory;
 import org.apache.flink.table.module.Module;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.resource.ResourceManager;
-import org.apache.flink.table.sinks.TableSink;
-import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.FlinkUserCodeClassLoaders;
 import org.apache.flink.util.MutableURLClassLoader;
@@ -83,7 +77,6 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 import java.lang.reflect.Method;
 import java.net.URL;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -621,7 +614,7 @@ public class ExecutionContext<ClusterID> {
             if (v instanceof ScalarFunction) {
                 streamTableEnvironment.createTemporarySystemFunction(k, (ScalarFunction) v);
             } else if (v instanceof AggregateFunction) {
-                streamTableEnvironment.createTemporarySystemFunction(k, (AggregateFunction<?, ?>) v);
+                streamTableEnvironment.createTemporarySystemFunction(k, (AggregateFunction) v);
             } else if (v instanceof TableFunction) {
                 streamTableEnvironment.createTemporarySystemFunction(k, (TableFunction<?>) v);
             } else {

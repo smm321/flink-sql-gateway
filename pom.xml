@@ -24,7 +24,7 @@ under the License.
     <artifactId>flink-sql-gateway</artifactId>
     <groupId>com.ververica</groupId>
     <name>flink-sql-gateway</name>
-    <version>1.16.0-SNAPSHOT</version>
+    <version>1.17.1</version>
 
     <description>
         Flink SQL gateway is a service that allows other applications
@@ -34,7 +34,7 @@ under the License.
     <packaging>jar</packaging>
 
     <properties>
-        <flink.version>1.16.0</flink.version>
+        <flink.version>1.17.1</flink.version>
         <java.version>8</java.version>
         <slf4j.version>1.7.15</slf4j.version>
         <log4j.version>1.2.17</log4j.version>
@@ -48,7 +48,7 @@ under the License.
         <junit.version>4.12</junit.version>
         <mysql.version>8.0.23</mysql.version>
         <lombok.version>1.18.6</lombok.version>
-        <calcite.version>1.26.0</calcite.version>
+        <calcite.version>1.29.0</calcite.version>
         <junit.version>4.12</junit.version>
     </properties>
 
@@ -87,11 +87,13 @@ under the License.
             <groupId>org.apache.flink</groupId>
             <artifactId>flink-table-runtime</artifactId>
             <version>${flink.version}</version>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.flink</groupId>
             <artifactId>flink-table-common</artifactId>
             <version>${flink.version}</version>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.flink</groupId>
@@ -120,12 +122,6 @@ under the License.
             <version>${flink.version}</version>
         </dependency>
 
-        <!-- flink util-->
-        <dependency>
-            <groupId>org.apache.flink</groupId>
-            <artifactId>flink-shaded-jackson</artifactId>
-            <version>2.10.1-9.0</version>
-        </dependency>
         <!-- flink connector-->
         <dependency>
             <groupId>org.apache.flink</groupId>
@@ -143,7 +139,7 @@ under the License.
         <dependency>
             <groupId>org.apache.flink</groupId>
             <artifactId>flink-state-processor-api</artifactId>
-            <version>${flink.version}</version>
+            <version>1.17-SNAPSHOT</version>
         </dependency>
 
         <!-- https://mvnrepository.com/artifact/org.apache.flink/flink-shaded-jackson -->
@@ -581,7 +577,7 @@ under the License.
                         </execution>
                     </executions>
                     <configuration>
-                        <suppressionsLocation>/tools/maven/suppressions.xml</suppressionsLocation>
+                        <suppressionsLocation>/tools/maven/suppression.xml</suppressionsLocation>
                         <includeTestSourceDirectory>false</includeTestSourceDirectory>
                         <configLocation>/tools/maven/checkstyle.xml</configLocation>
                         <logViolationsToConsole>false</logViolationsToConsole>

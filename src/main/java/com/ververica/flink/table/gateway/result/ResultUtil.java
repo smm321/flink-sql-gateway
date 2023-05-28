@@ -29,7 +29,6 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.net.ConnectionUtils;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter;
-
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
