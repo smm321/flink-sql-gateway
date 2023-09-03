@@ -21,7 +21,6 @@ package com.ververica.flink.table.gateway.result;
 import com.ververica.flink.table.gateway.config.Environment;
 import com.ververica.flink.table.gateway.config.entries.DeploymentEntry;
 import com.ververica.flink.table.gateway.utils.SqlGatewayException;
-
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
@@ -30,7 +29,6 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.net.ConnectionUtils;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter;
-
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
@@ -41,85 +39,85 @@ import java.util.stream.Stream;
  */
 public class ResultUtil {
 
-	public static <C> BatchResult<C> createBatchResult(
-			TableSchema schema,
-			ExecutionConfig config,
-			ClassLoader classLoader) {
-		final TypeInformation[] schemaTypeInfos = Stream.of(schema.getFieldDataTypes())
-			.map(TypeInfoDataTypeConverter::fromDataTypeToTypeInfo)
-			.toArray(TypeInformation[]::new);
-		final RowTypeInfo outputType = new RowTypeInfo(schemaTypeInfos, schema.getFieldNames());
+    public static <C> BatchResult<C> createBatchResult(
+            TableSchema schema,
+            ExecutionConfig config,
+            ClassLoader classLoader) {
+        final TypeInformation[] schemaTypeInfos = Stream.of(schema.getFieldDataTypes())
+                .map(TypeInfoDataTypeConverter::fromDataTypeToTypeInfo)
+                .toArray(TypeInformation[]::new);
+        final RowTypeInfo outputType = new RowTypeInfo(schemaTypeInfos, schema.getFieldNames());
 
-		return new BatchResult<>(schema, outputType, config, classLoader);
-	}
+        return new BatchResult<>(schema, outputType, config, classLoader);
+    }
 
-	public static <C> ChangelogResult<C> createChangelogResult(
-			Configuration flinkConfig,
-			Environment env,
-			TableSchema schema,
-			ExecutionConfig config,
-			ClassLoader classLoader) {
-		final TypeInformation[] schemaTypeInfos = Stream.of(schema.getFieldDataTypes())
-			.map(TypeInfoDataTypeConverter::fromDataTypeToTypeInfo)
-			.toArray(TypeInformation[]::new);
-		final RowTypeInfo outputType = new RowTypeInfo(schemaTypeInfos, schema.getFieldNames());
+    public static <C> ChangelogResult<C> createChangelogResult(
+            Configuration flinkConfig,
+            Environment env,
+            TableSchema schema,
+            ExecutionConfig config,
+            ClassLoader classLoader) {
+        final TypeInformation[] schemaTypeInfos = Stream.of(schema.getFieldDataTypes())
+                .map(TypeInfoDataTypeConverter::fromDataTypeToTypeInfo)
+                .toArray(TypeInformation[]::new);
+        final RowTypeInfo outputType = new RowTypeInfo(schemaTypeInfos, schema.getFieldNames());
 
-		// determine gateway address (and port if possible)
-		final InetAddress gatewayAddress = getGatewayAddress(env.getDeployment(), flinkConfig);
-		final int gatewayPort = getGatewayPort(env.getDeployment());
-		final int maxBufferSize = env.getExecution().getMaxBufferSize();
+        // determine gateway address (and port if possible)
+        final InetAddress gatewayAddress = getGatewayAddress(env.getDeployment(), flinkConfig);
+        final int gatewayPort = getGatewayPort(env.getDeployment());
+        final int maxBufferSize = env.getExecution().getMaxBufferSize();
 
-		return new ChangelogResult<>(
-			outputType,
-			schema,
-			config,
-			gatewayAddress,
-			gatewayPort,
-			classLoader,
-			maxBufferSize);
-	}
+        return new ChangelogResult<>(
+                outputType,
+                schema,
+                config,
+                gatewayAddress,
+                gatewayPort,
+                classLoader,
+                maxBufferSize);
+    }
 
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
-	private static int getGatewayPort(DeploymentEntry deploy) {
-		// try to get address from deployment configuration
-		return deploy.getGatewayPort();
-	}
+    private static int getGatewayPort(DeploymentEntry deploy) {
+        // try to get address from deployment configuration
+        return deploy.getGatewayPort();
+    }
 
-	private static InetAddress getGatewayAddress(DeploymentEntry deploy, Configuration flinkConfig) {
-		// try to get address from deployment configuration
-		final String address = deploy.getGatewayAddress();
+    private static InetAddress getGatewayAddress(DeploymentEntry deploy, Configuration flinkConfig) {
+        // try to get address from deployment configuration
+        final String address = deploy.getGatewayAddress();
 
-		// use manually defined address
-		if (!address.isEmpty()) {
-			try {
-				return InetAddress.getByName(address);
-			} catch (UnknownHostException e) {
-				throw new SqlGatewayException("Invalid gateway address '" + address + "' for result retrieval.", e);
-			}
-		} else {
-			// TODO cache this
-			// try to get the address by communicating to JobManager
-			final String jobManagerAddress = flinkConfig.getString(JobManagerOptions.ADDRESS);
-			final int jobManagerPort = flinkConfig.getInteger(JobManagerOptions.PORT);
-			if (jobManagerAddress != null && !jobManagerAddress.isEmpty()) {
-				try {
-					return ConnectionUtils.findConnectingAddress(
-						new InetSocketAddress(jobManagerAddress, jobManagerPort),
-						deploy.getResponseTimeout(),
-						400);
-				} catch (Exception e) {
-					throw new SqlGatewayException("Could not determine address of the gateway for result retrieval " +
-						"by connecting to the job manager. Please specify the gateway address manually.", e);
-				}
-			} else {
-				try {
-					return InetAddress.getLocalHost();
-				} catch (UnknownHostException e) {
-					throw new SqlGatewayException("Could not determine address of the gateway for result retrieval. " +
-						"Please specify the gateway address manually.", e);
-				}
-			}
-		}
-	}
+        // use manually defined address
+        if (!address.isEmpty()) {
+            try {
+                return InetAddress.getByName(address);
+            } catch (UnknownHostException e) {
+                throw new SqlGatewayException("Invalid gateway address '" + address + "' for result retrieval.", e);
+            }
+        } else {
+            // TODO cache this
+            // try to get the address by communicating to JobManager
+            final String jobManagerAddress = flinkConfig.getString(JobManagerOptions.ADDRESS);
+            final int jobManagerPort = flinkConfig.getInteger(JobManagerOptions.PORT);
+            if (jobManagerAddress != null && !jobManagerAddress.isEmpty()) {
+                try {
+                    return ConnectionUtils.findConnectingAddress(
+                            new InetSocketAddress(jobManagerAddress, jobManagerPort),
+                            deploy.getResponseTimeout(),
+                            400);
+                } catch (Exception e) {
+                    throw new SqlGatewayException("Could not determine address of the gateway for result retrieval " +
+                            "by connecting to the job manager. Please specify the gateway address manually.", e);
+                }
+            } else {
+                try {
+                    return InetAddress.getLocalHost();
+                } catch (UnknownHostException e) {
+                    throw new SqlGatewayException("Could not determine address of the gateway for result retrieval. " +
+                            "Please specify the gateway address manually.", e);
+                }
+            }
+        }
+    }
 }

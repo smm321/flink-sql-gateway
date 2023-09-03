@@ -23,17 +23,14 @@ import com.ververica.flink.table.gateway.rest.message.SessionIdPathParameter;
 import com.ververica.flink.table.gateway.rest.message.SessionMessageParameters;
 import com.ververica.flink.table.gateway.rest.session.SessionManager;
 import com.ververica.flink.table.gateway.utils.SqlGatewayException;
-
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
-
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 import javax.annotation.Nonnull;
-
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
@@ -41,30 +38,30 @@ import java.util.concurrent.CompletableFuture;
  * Request handler for closing a session.
  */
 public class SessionCloseHandler
-	extends AbstractRestHandler<EmptyRequestBody, SessionCloseResponseBody, SessionMessageParameters> {
+        extends AbstractRestHandler<EmptyRequestBody, SessionCloseResponseBody, SessionMessageParameters> {
 
-	private SessionManager sessionManager;
+    private SessionManager sessionManager;
 
-	public SessionCloseHandler(
-		SessionManager sessionManager,
-		Time timeout,
-		Map<String, String> responseHeaders,
-		MessageHeaders<EmptyRequestBody, SessionCloseResponseBody, SessionMessageParameters> messageHeaders) {
+    public SessionCloseHandler(
+            SessionManager sessionManager,
+            Time timeout,
+            Map<String, String> responseHeaders,
+            MessageHeaders<EmptyRequestBody, SessionCloseResponseBody, SessionMessageParameters> messageHeaders) {
 
-		super(timeout, responseHeaders, messageHeaders);
-		this.sessionManager = sessionManager;
-	}
+        super(timeout, responseHeaders, messageHeaders);
+        this.sessionManager = sessionManager;
+    }
 
-	@Override
-	protected CompletableFuture<SessionCloseResponseBody> handleRequest(
-		@Nonnull HandlerRequest<EmptyRequestBody, SessionMessageParameters> request) throws RestHandlerException {
+    @Override
+    protected CompletableFuture<SessionCloseResponseBody> handleRequest(
+            @Nonnull HandlerRequest<EmptyRequestBody> request) throws RestHandlerException {
 
-		String sessionId = request.getPathParameter(SessionIdPathParameter.class);
-		try {
-			sessionManager.closeSession(sessionId);
-			return CompletableFuture.completedFuture(new SessionCloseResponseBody("CLOSED"));
-		} catch (SqlGatewayException e) {
-			throw new RestHandlerException(e.getMessage(), HttpResponseStatus.INTERNAL_SERVER_ERROR, e);
-		}
-	}
+        String sessionId = request.getPathParameter(SessionIdPathParameter.class);
+        try {
+            sessionManager.closeSession(sessionId);
+            return CompletableFuture.completedFuture(new SessionCloseResponseBody("CLOSED"));
+        } catch (SqlGatewayException e) {
+            throw new RestHandlerException(e.getMessage(), HttpResponseStatus.INTERNAL_SERVER_ERROR, e);
+        }
+    }
 }

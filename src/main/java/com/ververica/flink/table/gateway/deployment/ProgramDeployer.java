@@ -78,8 +78,9 @@ public class ProgramDeployer {
 
 		final PipelineExecutor executor = executorFactory.getExecutor(configuration);
 		try {
-			return executor.execute(pipeline, configuration);
+			return executor.execute(pipeline, configuration, this.getClass().getClassLoader());
 		} catch (Exception e) {
+			e.printStackTrace();
 			throw new RuntimeException("Could not execute program.", e);
 		}
 	}

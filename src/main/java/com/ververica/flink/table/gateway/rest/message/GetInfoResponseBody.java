@@ -19,7 +19,6 @@
 package com.ververica.flink.table.gateway.rest.message;
 
 import org.apache.flink.runtime.rest.messages.ResponseBody;
-
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -29,27 +28,27 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class GetInfoResponseBody implements ResponseBody {
 
-	private static final String FIELD_NAME_PRODUCT_NAME = "product_name";
-	private static final String FIELD_NAME_FLINK_VERSION = "version";
+    private static final String FIELD_NAME_PRODUCT_NAME = "product_name";
+    private static final String FIELD_NAME_FLINK_VERSION = "version";
 
-	@JsonProperty(FIELD_NAME_PRODUCT_NAME)
-	private final String productName;
+    @JsonProperty(FIELD_NAME_PRODUCT_NAME)
+    private final String productName;
 
-	@JsonProperty(FIELD_NAME_FLINK_VERSION)
-	private final String flinkVersion;
+    @JsonProperty(FIELD_NAME_FLINK_VERSION)
+    private final String flinkVersion;
 
-	public GetInfoResponseBody(
-		@JsonProperty(FIELD_NAME_PRODUCT_NAME) String productName,
-		@JsonProperty(FIELD_NAME_FLINK_VERSION) String flinkVersion) {
-		this.productName = productName;
-		this.flinkVersion = flinkVersion;
-	}
+    public GetInfoResponseBody(
+            @JsonProperty(FIELD_NAME_PRODUCT_NAME) String productName,
+            @JsonProperty(FIELD_NAME_FLINK_VERSION) String flinkVersion) {
+        this.productName = productName;
+        this.flinkVersion = flinkVersion;
+    }
 
-	public String getProductName() {
-		return productName;
-	}
+    public String getProductName() {
+        return productName;
+    }
 
-	public String getFlinkVersion() {
-		return flinkVersion;
-	}
+    public String getFlinkVersion() {
+        return flinkVersion;
+    }
 }

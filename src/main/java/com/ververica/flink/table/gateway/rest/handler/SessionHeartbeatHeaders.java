@@ -20,63 +20,71 @@ package com.ververica.flink.table.gateway.rest.handler;
 
 import com.ververica.flink.table.gateway.rest.message.SessionIdPathParameter;
 import com.ververica.flink.table.gateway.rest.message.SessionMessageParameters;
-
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.EmptyResponseBody;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
-
+import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
+import org.apache.flink.runtime.rest.versioning.RuntimeRestAPIVersion;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
+
+import java.util.Collection;
+import java.util.Collections;
 
 /**
  * Message headers for triggering session heartbeat.
  */
 public class SessionHeartbeatHeaders
-	implements MessageHeaders<EmptyRequestBody, EmptyResponseBody, SessionMessageParameters> {
+        implements MessageHeaders<EmptyRequestBody, EmptyResponseBody, SessionMessageParameters> {
 
-	private static final SessionHeartbeatHeaders INSTANCE = new SessionHeartbeatHeaders();
+    private static final SessionHeartbeatHeaders INSTANCE = new SessionHeartbeatHeaders();
 
-	public static final String URL = "/sessions/:" + SessionIdPathParameter.KEY + "/heartbeat";
+    public static final String URL = "/sessions/:" + SessionIdPathParameter.KEY + "/heartbeat";
 
-	private SessionHeartbeatHeaders() {
-	}
+    private SessionHeartbeatHeaders() {
+    }
 
-	@Override
-	public Class<EmptyResponseBody> getResponseClass() {
-		return EmptyResponseBody.class;
-	}
+    @Override
+    public Class<EmptyResponseBody> getResponseClass() {
+        return EmptyResponseBody.class;
+    }
 
-	@Override
-	public HttpResponseStatus getResponseStatusCode() {
-		return HttpResponseStatus.OK;
-	}
+    @Override
+    public HttpResponseStatus getResponseStatusCode() {
+        return HttpResponseStatus.OK;
+    }
 
-	@Override
-	public String getDescription() {
-		return "Triggers session heartbeat";
-	}
+    @Override
+    public String getDescription() {
+        return "Triggers session heartbeat";
+    }
 
-	@Override
-	public Class<EmptyRequestBody> getRequestClass() {
-		return EmptyRequestBody.class;
-	}
+    @Override
+    public Class<EmptyRequestBody> getRequestClass() {
+        return EmptyRequestBody.class;
+    }
 
-	@Override
-	public SessionMessageParameters getUnresolvedMessageParameters() {
-		return new SessionMessageParameters();
-	}
+    @Override
+    public SessionMessageParameters getUnresolvedMessageParameters() {
+        return new SessionMessageParameters();
+    }
 
-	@Override
-	public HttpMethodWrapper getHttpMethod() {
-		return HttpMethodWrapper.POST;
-	}
+    @Override
+    public HttpMethodWrapper getHttpMethod() {
+        return HttpMethodWrapper.POST;
+    }
 
-	@Override
-	public String getTargetRestEndpointURL() {
-		return URL;
-	}
+    @Override
+    public String getTargetRestEndpointURL() {
+        return URL;
+    }
 
-	public static SessionHeartbeatHeaders getInstance() {
-		return INSTANCE;
-	}
+    @Override
+    public Collection<? extends RestAPIVersion<?>> getSupportedAPIVersions() {
+        return Collections.singleton(RuntimeRestAPIVersion.V1);
+    }
+
+    public static SessionHeartbeatHeaders getInstance() {
+        return INSTANCE;
+    }
 }

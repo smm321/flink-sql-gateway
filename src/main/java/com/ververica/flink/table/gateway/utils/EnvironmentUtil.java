@@ -19,7 +19,6 @@
 package com.ververica.flink.table.gateway.utils;
 
 import com.ververica.flink.table.gateway.config.Environment;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,21 +29,21 @@ import java.net.URL;
  * Utility class for reading environment file.
  */
 public class EnvironmentUtil {
-	private static final Logger LOG = LoggerFactory.getLogger(EnvironmentUtil.class);
+    private static final Logger LOG = LoggerFactory.getLogger(EnvironmentUtil.class);
 
-	public static Environment readEnvironment(URL envUrl) {
-		// use an empty environment by default
-		if (envUrl == null) {
-			System.out.println("No session environment specified.");
-			return new Environment();
-		}
+    public static Environment readEnvironment(URL envUrl) {
+        // use an empty environment by default
+        if (envUrl == null) {
+            System.out.println("No session environment specified.");
+            return new Environment();
+        }
 
-		System.out.println("Reading configuration from: " + envUrl);
-		LOG.info("Using configuration file: {}", envUrl);
-		try {
-			return Environment.parse(envUrl);
-		} catch (IOException e) {
-			throw new SqlGatewayException("Could not read configuration file at: " + envUrl, e);
-		}
-	}
+        System.out.println("Reading configuration from: " + envUrl);
+        LOG.info("Using configuration file: {}", envUrl);
+        try {
+            return Environment.parse(envUrl);
+        } catch (IOException e) {
+            throw new SqlGatewayException("Could not read configuration file at: " + envUrl, e);
+        }
+    }
 }

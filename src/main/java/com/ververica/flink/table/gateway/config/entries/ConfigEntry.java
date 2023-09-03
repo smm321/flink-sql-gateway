@@ -19,55 +19,54 @@
 package com.ververica.flink.table.gateway.config.entries;
 
 import com.ververica.flink.table.gateway.utils.SqlGatewayException;
-
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.descriptors.DescriptorProperties;
 
 import java.util.Map;
 import java.util.Objects;
 
 /**
  * Describes an environment configuration entry (such as catalogs, table, functions, views). Config entries
- * are similar to {@link org.apache.flink.table.descriptors.Descriptor} but apply to SQL Gateway's
+ * are similar to {@link Configuration} but apply to SQL Gateway's
  * environment files only.
  */
 abstract class ConfigEntry {
 
-	protected final DescriptorProperties properties;
+    protected final Configuration configuration;
 
-	protected ConfigEntry(DescriptorProperties properties) {
-		try {
-			validate(properties);
-		} catch (ValidationException e) {
-			throw new SqlGatewayException("Invalid configuration entry.", e);
-		}
+    protected ConfigEntry(Configuration configuration) {
+        try {
+            validate(configuration);
+        } catch (ValidationException e) {
+            throw new SqlGatewayException("Invalid configuration entry.", e);
+        }
 
-		this.properties = properties;
-	}
+        this.configuration = configuration;
+    }
 
-	/**
-	 * Performs syntactic validation.
-	 */
-	protected abstract void validate(DescriptorProperties properties);
+    /**
+     * Performs syntactic validation.
+     */
+    protected abstract void validate(Configuration properties);
 
-	public Map<String, String> asMap() {
-		return properties.asMap();
-	}
+    public Map<String, String> asMap() {
+        return configuration.toMap();
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		ConfigEntry that = (ConfigEntry) o;
-		return Objects.equals(properties, that.properties);
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        ConfigEntry that = (ConfigEntry) o;
+        return Objects.equals(o, that.configuration);
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(properties);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(configuration);
+    }
 }

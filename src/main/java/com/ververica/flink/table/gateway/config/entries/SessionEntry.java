@@ -19,8 +19,9 @@
 package com.ververica.flink.table.gateway.config.entries;
 
 import com.ververica.flink.table.gateway.config.ConfigUtil;
-
-import org.apache.flink.table.descriptors.DescriptorProperties;
+import com.ververica.flink.table.gateway.utils.ConfigurationValidater;
+import org.apache.flink.configuration.ConfigOptions;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.TimeUtils;
 
 import java.util.HashMap;
@@ -33,58 +34,59 @@ import static com.ververica.flink.table.gateway.config.Environment.SESSION_ENTRY
  */
 public class SessionEntry extends ConfigEntry {
 
-	public static final SessionEntry DEFAULT_INSTANCE = new SessionEntry(new DescriptorProperties(true));
+    public static final SessionEntry DEFAULT_INSTANCE = new SessionEntry(new Configuration());
 
-	private static final String SESSION_IDLE_TIMEOUT = "idle-timeout";
+    private static final String SESSION_IDLE_TIMEOUT = "idle-timeout";
 
-	private static final String SESSION_CHECK_INTERVAL = "check-interval";
+    private static final String SESSION_CHECK_INTERVAL = "check-interval";
 
-	private static final String SESSION_MAX_COUNT = "max-count";
+    private static final String SESSION_MAX_COUNT = "max-count";
 
-	private SessionEntry(DescriptorProperties properties) {
-		super(properties);
-	}
+    private SessionEntry(Configuration properties) {
+        super(properties);
+    }
 
-	@Override
-	protected void validate(DescriptorProperties properties) {
-		properties.validateDuration(SESSION_IDLE_TIMEOUT, true, 1);
-		properties.validateDuration(SESSION_CHECK_INTERVAL, true, 1);
-		properties.validateLong(SESSION_MAX_COUNT, true, 0);
-	}
+    @Override
+    protected void validate(Configuration properties) {
+        ConfigurationValidater validate = ConfigurationValidater.builder().configuration(properties).build();
+        validate.validateDuration(SESSION_IDLE_TIMEOUT, true, 1);
+        validate.validateDuration(SESSION_CHECK_INTERVAL, true, 1);
+        validate.validateLong(SESSION_MAX_COUNT, true, 0);
+    }
 
-	public static SessionEntry create(Map<String, Object> config) {
-		return new SessionEntry(ConfigUtil.normalizeYaml(config));
-	}
+    public static SessionEntry create(Map<String, Object> config) {
+        return new SessionEntry(ConfigUtil.normalizeYaml(config));
+    }
 
-	public Map<String, String> asTopLevelMap() {
-		return properties.asPrefixedMap(SESSION_ENTRY + '.');
-	}
+    public Map<String, String> asTopLevelMap() {
+        ConfigurationValidater validater = ConfigurationValidater.builder().configuration(configuration).build();
+        return validater.asPrefixedMap(SESSION_ENTRY + '.');
+    }
 
-	/**
-	 * Merges two session entries. The properties of the first execution entry might be
-	 * overwritten by the second one.
-	 */
-	public static SessionEntry merge(SessionEntry session1, SessionEntry session2) {
-		final Map<String, String> mergedProperties = new HashMap<>(session1.asTopLevelMap());
-		mergedProperties.putAll(session2.asTopLevelMap());
+    /**
+     * Merges two session entries. The properties of the first execution entry might be
+     * overwritten by the second one.
+     */
+    public static SessionEntry merge(SessionEntry session1, SessionEntry session2) {
+        final Map<String, String> mergedProperties = new HashMap<>(session1.asTopLevelMap());
+        mergedProperties.putAll(session2.asTopLevelMap());
+        return new SessionEntry(Configuration.fromMap(mergedProperties));
+    }
 
-		final DescriptorProperties properties = new DescriptorProperties(true);
-		properties.putProperties(mergedProperties);
+    public long getIdleTimeout() {
+        String timeout = configuration.getOptional(
+                ConfigOptions.key(SESSION_IDLE_TIMEOUT).stringType().defaultValue("1d")).get();
+        return TimeUtils.parseDuration(timeout).toMillis();
+    }
 
-		return new SessionEntry(properties);
-	}
+    public long getCheckInterval() {
+        String interval = configuration.getOptional(
+                ConfigOptions.key(SESSION_CHECK_INTERVAL).stringType().defaultValue("1h")).get();
+        return TimeUtils.parseDuration(interval).toMillis();
+    }
 
-	public long getIdleTimeout() {
-		String timeout = properties.getOptionalString(SESSION_IDLE_TIMEOUT).orElse("1d");
-		return TimeUtils.parseDuration(timeout).toMillis();
-	}
-
-	public long getCheckInterval() {
-		String interval = properties.getOptionalString(SESSION_CHECK_INTERVAL).orElse("1h");
-		return TimeUtils.parseDuration(interval).toMillis();
-	}
-
-	public long getMaxCount() {
-		return properties.getOptionalLong(SESSION_MAX_COUNT).orElse(1000000L);
-	}
+    public long getMaxCount() {
+        return configuration.getOptional(
+                ConfigOptions.key(SESSION_MAX_COUNT).longType().defaultValue(1000000L)).get();
+    }
 }

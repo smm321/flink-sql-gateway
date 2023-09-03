@@ -19,7 +19,6 @@
 package com.ververica.flink.table.gateway.rest.handler;
 
 import com.ververica.flink.table.gateway.rest.message.GetInfoResponseBody;
-
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
@@ -29,7 +28,6 @@ import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 
 import javax.annotation.Nonnull;
-
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
@@ -37,21 +35,21 @@ import java.util.concurrent.CompletableFuture;
  * Request handler for getting info.
  */
 public class GetInfoHandler
-	extends AbstractRestHandler<EmptyRequestBody, GetInfoResponseBody, EmptyMessageParameters> {
+        extends AbstractRestHandler<EmptyRequestBody, GetInfoResponseBody, EmptyMessageParameters> {
 
-	public GetInfoHandler(
-		Time timeout,
-		Map<String, String> responseHeaders,
-		MessageHeaders<EmptyRequestBody, GetInfoResponseBody, EmptyMessageParameters> messageHeaders) {
+    public GetInfoHandler(
+            Time timeout,
+            Map<String, String> responseHeaders,
+            MessageHeaders<EmptyRequestBody, GetInfoResponseBody, EmptyMessageParameters> messageHeaders) {
 
-		super(timeout, responseHeaders, messageHeaders);
-	}
+        super(timeout, responseHeaders, messageHeaders);
+    }
 
-	@Override
-	protected CompletableFuture<GetInfoResponseBody> handleRequest(
-		@Nonnull HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request) throws RestHandlerException {
-		String version = EnvironmentInformation.getVersion();
-		return CompletableFuture.completedFuture(new GetInfoResponseBody("Apache Flink", version));
-	}
+    @Override
+    protected CompletableFuture<GetInfoResponseBody> handleRequest(
+            @Nonnull HandlerRequest<EmptyRequestBody> request) throws RestHandlerException {
+        String version = EnvironmentInformation.getVersion();
+        return CompletableFuture.completedFuture(new GetInfoResponseBody("Apache Flink", version));
+    }
 
 }

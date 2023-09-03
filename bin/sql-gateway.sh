@@ -112,7 +112,7 @@ JVM_ARGS=`extractExecutionResults "$jvm_args_output" 1`
 if [ -n "$FLINK_SQL_GATEWAY_JAR" ]; then
 
     # start gateway with jar
-    exec $JAVA_RUN $JVM_ARGS "${log_setting[@]}" -classpath ${FULL_CLASSPATH} com.ververica.flink.table.gateway.SqlGateway "$@" --defaults "$FLINK_SQL_GATEWAY_DEFAULT_CONF" --jar "`manglePath $FLINK_SQL_GATEWAY_JAR`"
+    exec $JAVA_RUN -agentlib:jdwp=transport=dt_socket,server=y,address=18083,suspend=n $JVM_ARGS "${log_setting[@]}" -classpath ${FULL_CLASSPATH} com.ververica.flink.table.gateway.SqlGateway "$@" --defaults "$FLINK_SQL_GATEWAY_DEFAULT_CONF" --jar "`manglePath $FLINK_SQL_GATEWAY_JAR`"
 
 # write error message to stderr
 else

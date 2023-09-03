@@ -21,7 +21,6 @@ package com.ververica.flink.table.gateway.result;
 import com.ververica.flink.table.gateway.sink.CollectStreamTableSink;
 import com.ververica.flink.table.gateway.utils.SqlExecutionException;
 import com.ververica.flink.table.gateway.utils.SqlGatewayException;
-
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -53,163 +52,164 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class ChangelogResult<C> extends AbstractResult<C, Tuple2<Boolean, Row>> {
 
-	private final SocketStreamIterator<Tuple2<Boolean, Row>> iterator;
-	private final CollectStreamTableSink collectTableSink;
-	private final ResultRetrievalThread retrievalThread;
-	private final ClassLoader classLoader;
-	private CompletableFuture<JobExecutionResult> jobExecutionResultFuture;
+    private final SocketStreamIterator<Tuple2<Boolean, Row>> iterator;
+    private final CollectStreamTableSink collectTableSink;
+    private final ResultRetrievalThread retrievalThread;
+    private final ClassLoader classLoader;
+    private CompletableFuture<JobExecutionResult> jobExecutionResultFuture;
 
-	private final Object resultLock;
-	private AtomicReference<SqlExecutionException> executionException = new AtomicReference<>();
-	private final List<Tuple2<Boolean, Row>> changeRecordBuffer;
-	private final int maxBufferSize;
+    private final Object resultLock;
+    private AtomicReference<SqlExecutionException> executionException = new AtomicReference<>();
+    private final List<Tuple2<Boolean, Row>> changeRecordBuffer;
+    private final int maxBufferSize;
 
-	public ChangelogResult(
-			RowTypeInfo outputType,
-			TableSchema tableSchema,
-			ExecutionConfig config,
-			InetAddress gatewayAddress,
-			int gatewayPort,
-			ClassLoader classLoader,
-			int maxBufferSize) {
-		resultLock = new Object();
+    public ChangelogResult(
+            RowTypeInfo outputType,
+            TableSchema tableSchema,
+            ExecutionConfig config,
+            InetAddress gatewayAddress,
+            int gatewayPort,
+            ClassLoader classLoader,
+            int maxBufferSize) {
+        resultLock = new Object();
 
-		// create socket stream iterator
-		final TypeInformation<Tuple2<Boolean, Row>> socketType = Types.TUPLE(Types.BOOLEAN, outputType);
-		final TypeSerializer<Tuple2<Boolean, Row>> serializer = socketType.createSerializer(config);
-		try {
-			// pass gateway port and address such that iterator knows where to bind to
-			iterator = new SocketStreamIterator<>(gatewayPort, gatewayAddress, serializer);
-		} catch (IOException e) {
-			throw new SqlGatewayException("Could not start socket for result retrieval.", e);
-		}
+        // create socket stream iterator
+        final TypeInformation<Tuple2<Boolean, Row>> socketType = Types.TUPLE(Types.BOOLEAN, outputType);
+        final TypeSerializer<Tuple2<Boolean, Row>> serializer = socketType.createSerializer(config);
+        try {
+            // pass gateway port and address such that iterator knows where to bind to
+            iterator = new SocketStreamIterator<>(gatewayPort, gatewayAddress, serializer);
+        } catch (IOException e) {
+            throw new SqlGatewayException("Could not start socket for result retrieval.", e);
+        }
 
-		// create table sink
-		// pass binding address and port such that sink knows where to send to
-		collectTableSink = new CollectStreamTableSink(
-			iterator.getBindAddress(), iterator.getPort(), serializer, tableSchema);
-		retrievalThread = new ResultRetrievalThread();
+        // create table sink
+        // pass binding address and port such that sink knows where to send to
+        collectTableSink = new CollectStreamTableSink(
+                iterator.getBindAddress(), iterator.getPort(), serializer, tableSchema);
+        retrievalThread = new ResultRetrievalThread();
 
-		this.classLoader = checkNotNull(classLoader);
+        this.classLoader = checkNotNull(classLoader);
 
-		// prepare for changelog
-		changeRecordBuffer = new ArrayList<>();
-		this.maxBufferSize = maxBufferSize;
-	}
+        // prepare for changelog
+        changeRecordBuffer = new ArrayList<>();
+        this.maxBufferSize = maxBufferSize;
+    }
 
-	@Override
-	public void startRetrieval(JobClient jobClient) {
-		// start listener thread
-		retrievalThread.start();
+    @Override
+    public void startRetrieval(JobClient jobClient) {
+        // start listener thread
+        retrievalThread.start();
 
-		jobExecutionResultFuture = CompletableFuture.completedFuture(jobClient)
-			.thenCompose(client -> client.getJobExecutionResult(classLoader))
-			.whenComplete((unused, throwable) -> {
-				if (throwable != null) {
-					executionException.compareAndSet(
-						null,
-						new SqlExecutionException("Error while submitting job.", throwable));
-				}
-			});
-	}
+        jobExecutionResultFuture = CompletableFuture.completedFuture(jobClient)
+                .thenCompose(JobClient::getJobExecutionResult)
+                .whenComplete((unused, throwable) -> {
+                    if (throwable != null) {
+                        executionException.compareAndSet(
+                                null,
+                                new SqlExecutionException("Error while submitting job.", throwable));
+                    }
+                });
+    }
 
-	@Override
-	public TypedResult<List<Tuple2<Boolean, Row>>> retrieveChanges() {
-		synchronized (resultLock) {
-			// retrieval thread is alive return a record if available
-			// but the program must not have failed
-			if (isRetrieving() && executionException.get() == null) {
-				if (changeRecordBuffer.isEmpty()) {
-					return TypedResult.empty();
-				} else {
-					final List<Tuple2<Boolean, Row>> change = new ArrayList<>(changeRecordBuffer);
-					changeRecordBuffer.clear();
-					resultLock.notify();
-					return TypedResult.payload(change);
-				}
-			}
-			// retrieval thread is dead but there is still a record to be delivered
-			else if (!isRetrieving() && !changeRecordBuffer.isEmpty()) {
-				final List<Tuple2<Boolean, Row>> change = new ArrayList<>(changeRecordBuffer);
-				changeRecordBuffer.clear();
-				return TypedResult.payload(change);
-			}
-			// no results can be returned anymore
-			else {
-				return handleMissingResult();
-			}
-		}
-	}
+    @Override
+    public TypedResult<List<Tuple2<Boolean, Row>>> retrieveChanges() {
+        synchronized (resultLock) {
+            // retrieval thread is alive return a record if available
+            // but the program must not have failed
+            if (isRetrieving() && executionException.get() == null) {
+                if (changeRecordBuffer.isEmpty()) {
+                    return TypedResult.empty();
+                } else {
+                    final List<Tuple2<Boolean, Row>> change = new ArrayList<>(changeRecordBuffer);
+                    changeRecordBuffer.clear();
+                    resultLock.notify();
+                    return TypedResult.payload(change);
+                }
+            }
+            // retrieval thread is dead but there is still a record to be delivered
+            else if (!isRetrieving() && !changeRecordBuffer.isEmpty()) {
+                final List<Tuple2<Boolean, Row>> change = new ArrayList<>(changeRecordBuffer);
+                changeRecordBuffer.clear();
+                return TypedResult.payload(change);
+            }
+            // no results can be returned anymore
+            else {
+                return handleMissingResult();
+            }
+        }
+    }
 
-	@Override
-	public TableSink<?> getTableSink() {
-		return collectTableSink;
-	}
+    @Override
+    public TableSink<?> getTableSink() {
+        return collectTableSink;
+    }
 
-	@Override
-	public void close() {
-		retrievalThread.isRunning = false;
-		retrievalThread.interrupt();
-		iterator.close();
-	}
+    @Override
+    public void close() {
+        retrievalThread.isRunning = false;
+        retrievalThread.interrupt();
+        iterator.close();
+    }
 
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
-	private <T> TypedResult<T> handleMissingResult() {
+    private <T> TypedResult<T> handleMissingResult() {
 
-		// check if the monitoring thread is still there
-		// we need to wait until we know what is going on
-		if (!jobExecutionResultFuture.isDone()) {
-			return TypedResult.empty();
-		}
+        // check if the monitoring thread is still there
+        // we need to wait until we know what is going on
+        if (!jobExecutionResultFuture.isDone()) {
+            return TypedResult.empty();
+        }
 
-		if (executionException.get() != null) {
-			throw executionException.get();
-		}
+        if (executionException.get() != null) {
+            throw executionException.get();
+        }
 
-		// we assume that a bounded job finished
-		return TypedResult.endOfStream();
-	}
+        // we assume that a bounded job finished
+        return TypedResult.endOfStream();
+    }
 
-	private boolean isRetrieving() {
-		return retrievalThread.isRunning;
-	}
+    private boolean isRetrieving() {
+        return retrievalThread.isRunning;
+    }
 
-	private void processRecord(Tuple2<Boolean, Row> change) {
-		synchronized (resultLock) {
-			// wait if the buffer is full
-			if (changeRecordBuffer.size() >= maxBufferSize) {
-				try {
-					resultLock.wait();
-				} catch (InterruptedException e) {
-					// ignore
-				}
-			} else {
-				changeRecordBuffer.add(change);
-			}
-		}
-	}
+    private void processRecord(Tuple2<Boolean, Row> change) {
+        synchronized (resultLock) {
+            // wait if the buffer is full
+            if (changeRecordBuffer.size() >= maxBufferSize) {
+                try {
+                    resultLock.wait();
+                } catch (InterruptedException e) {
+                    // ignore
+                }
+            } else {
+                changeRecordBuffer.add(change);
+            }
+        }
+    }
 
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
-	private class ResultRetrievalThread extends Thread {
+    private class ResultRetrievalThread extends Thread {
 
-		public volatile boolean isRunning = true;
+        public volatile boolean isRunning = true;
 
-		@Override
-		public void run() {
-			try {
-				while (isRunning && iterator.hasNext()) {
-					final Tuple2<Boolean, Row> change = iterator.next();
-					processRecord(change);
-				}
-			} catch (RuntimeException e) {
-				// ignore socket exceptions
-			}
+        @Override
+        public void run() {
+            try {
+                while (isRunning && iterator.hasNext()) {
+                    final Tuple2<Boolean, Row> change = iterator.next();
+                    processRecord(change);
+                }
+            } catch (RuntimeException e) {
+                // ignore socket exceptions
+                e.printStackTrace();
+            }
 
-			// no result anymore
-			// either the job is done or an error occurred
-			isRunning = false;
-		}
-	}
+            // no result anymore
+            // either the job is done or an error occurred
+            isRunning = false;
+        }
+    }
 }

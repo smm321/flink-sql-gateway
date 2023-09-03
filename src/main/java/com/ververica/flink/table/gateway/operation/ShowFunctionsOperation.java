@@ -27,6 +27,8 @@ import org.apache.flink.table.api.TableEnvironment;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Operation for SHOW FUNCTIONS command.
@@ -41,7 +43,9 @@ public class ShowFunctionsOperation implements NonJobOperation {
 	@Override
 	public ResultSet execute() {
 		final TableEnvironment tableEnv = context.getTableEnvironment();
+		final List<String> userFunctions = context.wrapClassLoader(() -> Arrays.asList(tableEnv.listUserDefinedFunctions()));
 		final List<String> functions = context.wrapClassLoader(() -> Arrays.asList(tableEnv.listFunctions()));
-		return OperationUtil.stringListToResultSet(functions, ConstantNames.SHOW_FUNCTIONS_RESULT);
+		return OperationUtil.stringListToResultSet(Stream.concat(userFunctions.stream(), functions.stream())
+				.collect(Collectors.toList()), ConstantNames.SHOW_FUNCTIONS_RESULT);
 	}
 }

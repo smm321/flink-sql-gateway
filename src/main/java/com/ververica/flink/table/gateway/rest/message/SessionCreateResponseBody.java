@@ -19,7 +19,6 @@
 package com.ververica.flink.table.gateway.rest.message;
 
 import org.apache.flink.runtime.rest.messages.ResponseBody;
-
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -29,17 +28,17 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class SessionCreateResponseBody implements ResponseBody {
 
-	private static final String FIELD_SESSION_ID = "session_id";
+    private static final String FIELD_SESSION_ID = "session_id";
 
-	@JsonProperty(FIELD_SESSION_ID)
-	private String sessionId;
+    @JsonProperty(FIELD_SESSION_ID)
+    private String sessionId;
 
-	public SessionCreateResponseBody(
-		@JsonProperty(FIELD_SESSION_ID) String sessionId) {
-		this.sessionId = sessionId;
-	}
+    public SessionCreateResponseBody(
+            @JsonProperty(FIELD_SESSION_ID) String sessionId) {
+        this.sessionId = sessionId;
+    }
 
-	public String getSessionId() {
-		return sessionId;
-	}
+    public String getSessionId() {
+        return sessionId;
+    }
 }

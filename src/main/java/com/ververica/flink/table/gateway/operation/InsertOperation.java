@@ -27,22 +27,27 @@ import com.ververica.flink.table.gateway.rest.result.ConstantNames;
 import com.ververica.flink.table.gateway.rest.result.ResultKind;
 import com.ververica.flink.table.gateway.rest.result.ResultSet;
 import com.ververica.flink.table.gateway.utils.SqlExecutionException;
-
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.dag.Pipeline;
+import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.core.execution.JobClient;
-import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.bridge.java.internal.StreamTableEnvironmentImpl;
+import org.apache.flink.table.operations.ModifyOperation;
+import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.types.Row;
-
+import org.apache.flink.yarn.configuration.YarnConfigOptions;
+import org.apache.flink.yarn.configuration.YarnDeploymentTarget;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.sql.Statement;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -50,125 +55,138 @@ import java.util.regex.Pattern;
 
 /**
  * Operation for INSERT command.
+ * Support yarn-session mode only.
  */
 public class InsertOperation extends AbstractJobOperation {
-	private static final Logger LOG = LoggerFactory.getLogger(InsertOperation.class);
+    private static final Logger LOG = LoggerFactory.getLogger(InsertOperation.class);
 
-	private final String statement;
-	// insert into sql match pattern
-	private static final Pattern INSERT_SQL_PATTERN = Pattern.compile("(INSERT\\s+(INTO|OVERWRITE).*)",
-		Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+    private final String statement;
+    // insert into sql match pattern
+    private static final Pattern INSERT_SQL_PATTERN = Pattern.compile("(INSERT\\s+(INTO|OVERWRITE).*)",
+            Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
 
-	private final List<ColumnInfo> columnInfos;
+    private final List<ColumnInfo> columnInfos;
 
-	private boolean fetched = false;
+    private boolean fetched = false;
 
-	public InsertOperation(SessionContext context, String statement, String tableIdentifier) {
-		super(context);
-		this.statement = statement;
+    private final String appId;
 
-		this.columnInfos = Collections.singletonList(
-			ColumnInfo.create(tableIdentifier, new BigIntType(false)));
-	}
+    public InsertOperation(SessionContext context, String statement, String tableIdentifier, String appId) {
+        super(context);
+        this.statement = statement;
 
-	@Override
-	public ResultSet execute() {
-		jobId = executeUpdateInternal(context.getExecutionContext());
-		String strJobId = jobId.toString();
-		return ResultSet.builder()
-			.resultKind(ResultKind.SUCCESS_WITH_CONTENT)
-			.columns(ColumnInfo.create(ConstantNames.JOB_ID, new VarCharType(false, strJobId.length())))
-			.data(Row.of(strJobId))
-			.build();
-	}
+        this.columnInfos = Collections.singletonList(
+                ColumnInfo.create(tableIdentifier, new BigIntType(false)));
 
-	@Override
-	protected Optional<Tuple2<List<Row>, List<Boolean>>> fetchNewJobResults() {
-		if (fetched) {
-			return Optional.empty();
-		} else {
-			// for session mode, we can get job status from JM, because JM is a long life service.
-			// while for per-job mode, JM will be also destroy after the job is finished.
-			// so it's hard to say whether the job is finished/canceled
-			// or the job status is just inaccessible at that moment.
-			// currently only yarn-per-job is supported,
-			// and if the exception (thrown when getting job status) contains ApplicationNotFoundException,
-			// we can say the job is finished.
-			boolean isGloballyTerminalState = clusterDescriptorAdapter.isGloballyTerminalState();
+        this.appId = appId;
+    }
 
-			if (isGloballyTerminalState) {
-				// TODO get affected_row_count for batch job
-				fetched = true;
-				return Optional.of(Tuple2.of(Collections.singletonList(
-					Row.of((long) Statement.SUCCESS_NO_INFO)), null));
-			} else {
-				// TODO throws exception if the job fails
-				return Optional.of(Tuple2.of(Collections.emptyList(), null));
-			}
-		}
-	}
+    @Override
+    public ResultSet execute() {
+        jobId = executeUpdateInternal(context.getExecutionContext());
+        String strJobId = jobId.toString();
+        return ResultSet.builder()
+                .resultKind(ResultKind.SUCCESS_WITH_CONTENT)
+                .columns(ColumnInfo.create(ConstantNames.JOB_ID, new VarCharType(false, strJobId.length())))
+                .data(Row.of(strJobId))
+                .build();
+    }
 
-	@Override
-	protected List<ColumnInfo> getColumnInfos() {
-		return columnInfos;
-	}
+    @Override
+    protected Optional<Tuple2<List<Row>, List<Boolean>>> fetchNewJobResults() {
+        if (fetched) {
+            return Optional.empty();
+        } else {
+            // for session mode, we can get job status from JM, because JM is a long life service.
+            // while for per-job mode, JM will be also destroy after the job is finished.
+            // so it's hard to say whether the job is finished/canceled
+            // or the job status is just inaccessible at that moment.
+            // currently only yarn-per-job is supported,
+            // and if the exception (thrown when getting job status) contains ApplicationNotFoundException,
+            // we can say the job is finished.
+            boolean isGloballyTerminalState = clusterDescriptorAdapter.isGloballyTerminalState();
 
-	@Override
-	protected void cancelJobInternal() {
-		clusterDescriptorAdapter.cancelJob();
-	}
+            if (isGloballyTerminalState) {
+                // TODO get affected_row_count for batch job
+                fetched = true;
+                return Optional.of(Tuple2.of(Collections.singletonList(
+                        Row.of((long) Statement.SUCCESS_NO_INFO)), null));
+            } else {
+                // TODO throws exception if the job fails
+                return Optional.of(Tuple2.of(Collections.emptyList(), null));
+            }
+        }
+    }
 
-	private <C> JobID executeUpdateInternal(ExecutionContext<C> executionContext) {
-		TableEnvironment tableEnv = executionContext.getTableEnvironment();
-		// parse and validate statement
-		try {
-			executionContext.wrapClassLoader(() -> {
-				tableEnv.sqlUpdate(statement);
-				return null;
-			});
-		} catch (Throwable t) {
-			LOG.error(String.format("Session: %s. Invalid SQL query.", sessionId), t);
-			// catch everything such that the statement does not crash the executor
-			throw new SqlExecutionException("Invalid SQL update statement.", t);
-		}
+    @Override
+    protected List<ColumnInfo> getColumnInfos() {
+        return columnInfos;
+    }
 
-		//Todo: we should refactor following condition after TableEnvironment has support submit job directly.
-		if (!INSERT_SQL_PATTERN.matcher(statement.trim()).matches()) {
-			LOG.error("Session: {}. Only insert is supported now.", sessionId);
-			throw new SqlExecutionException("Only insert is supported now");
-		}
+    @Override
+    protected void cancelJobInternal() {
+        clusterDescriptorAdapter.cancelJob();
+    }
 
-		String jobName = getJobName(statement);
-		// create job graph with dependencies
-		final Pipeline pipeline;
-		try {
-			pipeline = executionContext.wrapClassLoader(() -> executionContext.createPipeline(jobName));
-		} catch (Throwable t) {
-			LOG.error(String.format("Session: %s. Invalid SQL query.", sessionId), t);
-			// catch everything such that the statement does not crash the executor
-			throw new SqlExecutionException("Invalid SQL statement.", t);
-		}
+    private <C> JobID executeUpdateInternal(ExecutionContext<C> executionContext) {
 
-		// create a copy so that we can change settings without affecting the original config
-		Configuration configuration = new Configuration(executionContext.getFlinkConfig());
-		// for update queries we don't wait for the job result, so run in detached mode
-		configuration.set(DeploymentOptions.ATTACHED, false);
+        if (!INSERT_SQL_PATTERN.matcher(statement.trim()).matches()) {
+            LOG.error("Session: {}. Only insert is supported now.", sessionId);
+            throw new SqlExecutionException("Only insert is supported now");
+        }
 
-		// create execution
-		final ProgramDeployer deployer = new ProgramDeployer(configuration, jobName, pipeline);
+        StreamTableEnvironmentImpl streamTableEnvironmentImpl = executionContext.getStreamTableEnvironmentImpl();
+        final List<Transformation<?>> transformations;
+        List<Operation> operations = streamTableEnvironmentImpl.getPlanner().getParser().parse(statement);
+        if (operations.size() != 1) {
+            throw new TableException("Only insert is supported now");
+        }
 
-		// blocking deployment
-		try {
-			JobClient jobClient = deployer.deploy().get();
-			JobID jobID = jobClient.getJobID();
-			this.clusterDescriptorAdapter =
-					ClusterDescriptorAdapterFactory.create(context.getExecutionContext(), configuration, sessionId, jobID);
-			if (LOG.isDebugEnabled()) {
-				LOG.debug("Cluster Descriptor Adapter: {}", clusterDescriptorAdapter);
-			}
-			return jobID;
-		} catch (Exception e) {
-			throw new RuntimeException("Error running SQL job.", e);
-		}
-	}
+        Operation operation = operations.get(0);
+        if (operation instanceof ModifyOperation) {
+            List<ModifyOperation> list = new ArrayList<>();
+            list.add((ModifyOperation) operation);
+            transformations = streamTableEnvironmentImpl.getPlanner().translate(list);
+        } else {
+            LOG.error("Session: {}. Only insert is supported now.", sessionId);
+            throw new SqlExecutionException("Only insert is supported now");
+        }
+
+        String jobName = getJobName(statement);
+        // create job graph with dependencies
+        final Pipeline pipeline;
+        try {
+            pipeline = executionContext.wrapClassLoader(() -> executionContext.createPipeline(jobName, transformations));
+        } catch (Throwable t) {
+            LOG.error(String.format("Session: %s. Invalid SQL query.", sessionId), t);
+            // catch everything such that the statement does not crash the executor
+            throw new SqlExecutionException("Invalid SQL statement.", t);
+        }
+
+        // create a copy so that we can change settings without affecting the original config
+        Configuration configuration = new Configuration(executionContext.getFlinkConfig());
+        // for update queries we don't wait for the job result, so run in detached mode
+        configuration.set(DeploymentOptions.ATTACHED, false);
+        // set execution.target to yarn-session
+        configuration.set(DeploymentOptions.TARGET, YarnDeploymentTarget.SESSION.getName());
+        // set the appId of the session
+        configuration.set(YarnConfigOptions.APPLICATION_ID, appId);
+
+        // create execution
+        final ProgramDeployer deployer = new ProgramDeployer(configuration, jobName, pipeline);
+
+        // blocking deployment
+        try {
+            JobClient jobClient = deployer.deploy().get();
+            JobID jobID = jobClient.getJobID();
+            this.clusterDescriptorAdapter =
+                    ClusterDescriptorAdapterFactory.create(context.getExecutionContext(), configuration, sessionId, jobID);
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("Cluster Descriptor Adapter: {}", clusterDescriptorAdapter);
+            }
+            return jobID;
+        } catch (Exception e) {
+            throw new RuntimeException("Error running SQL job.", e);
+        }
+    }
 }

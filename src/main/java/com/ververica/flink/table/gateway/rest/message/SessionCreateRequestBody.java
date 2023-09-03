@@ -19,12 +19,10 @@
 package com.ververica.flink.table.gateway.rest.message;
 
 import org.apache.flink.runtime.rest.messages.RequestBody;
-
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 import javax.annotation.Nullable;
-
 import java.util.Map;
 
 /**
@@ -33,56 +31,56 @@ import java.util.Map;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class SessionCreateRequestBody implements RequestBody {
 
-	private static final String FIELD_NAME_SESSION_NAME = "session_name";
-	private static final String FIELD_NAME_PLANNER = "planner";
-	private static final String FIELD_NAME_EXECUTION_TYPE = "execution_type";
-	private static final String FIELD_NAME_PROPERTIES = "properties";
+    private static final String FIELD_NAME_SESSION_NAME = "session_name";
+    private static final String FIELD_NAME_PLANNER = "planner";
+    private static final String FIELD_NAME_EXECUTION_TYPE = "execution_type";
+    private static final String FIELD_NAME_PROPERTIES = "properties";
 
-	@JsonProperty(FIELD_NAME_SESSION_NAME)
-	@Nullable
-	private final String sessionName;
+    @JsonProperty(FIELD_NAME_SESSION_NAME)
+    @Nullable
+    private final String sessionName;
 
-	@JsonProperty(FIELD_NAME_PLANNER)
-	@Nullable
-	private final String planner;
+    @JsonProperty(FIELD_NAME_PLANNER)
+    @Nullable
+    private final String planner;
 
-	@JsonProperty(FIELD_NAME_EXECUTION_TYPE)
-	@Nullable
-	private final String executionType;
+    @JsonProperty(FIELD_NAME_EXECUTION_TYPE)
+    @Nullable
+    private final String executionType;
 
-	@JsonProperty(FIELD_NAME_PROPERTIES)
-	@Nullable
-	private final Map<String, String> properties;
+    @JsonProperty(FIELD_NAME_PROPERTIES)
+    @Nullable
+    private final Map<String, String> properties;
 
-	public SessionCreateRequestBody(
-		@Nullable @JsonProperty(FIELD_NAME_SESSION_NAME) String sessionName,
-		@Nullable @JsonProperty(FIELD_NAME_PLANNER) String planner,
-		@Nullable @JsonProperty(FIELD_NAME_EXECUTION_TYPE) String executionType,
-		@Nullable @JsonProperty(FIELD_NAME_PROPERTIES) Map<String, String> properties) {
-		this.sessionName = sessionName;
-		this.planner = planner;
-		this.executionType = executionType;
-		this.properties = properties;
-	}
+    public SessionCreateRequestBody(
+            @Nullable @JsonProperty(FIELD_NAME_SESSION_NAME) String sessionName,
+            @Nullable @JsonProperty(FIELD_NAME_PLANNER) String planner,
+            @Nullable @JsonProperty(FIELD_NAME_EXECUTION_TYPE) String executionType,
+            @Nullable @JsonProperty(FIELD_NAME_PROPERTIES) Map<String, String> properties) {
+        this.sessionName = sessionName;
+        this.planner = planner;
+        this.executionType = executionType;
+        this.properties = properties;
+    }
 
-	@Nullable
-	public String getSessionName() {
-		return sessionName;
-	}
+    @Nullable
+    public String getSessionName() {
+        return sessionName;
+    }
 
-	@Nullable
-	public String getPlanner() {
-		return planner;
-	}
+    @Nullable
+    public String getPlanner() {
+        return planner;
+    }
 
-	@Nullable
-	public String getExecutionType() {
-		return executionType;
-	}
+    @Nullable
+    public String getExecutionType() {
+        return executionType;
+    }
 
-	@Nullable
-	public Map<String, String> getProperties() {
-		return properties;
-	}
+    @Nullable
+    public Map<String, String> getProperties() {
+        return properties;
+    }
 
 }

@@ -19,14 +19,11 @@
 package com.ververica.flink.table.gateway.rest.message;
 
 import com.ververica.flink.table.gateway.rest.result.ResultSet;
-
 import org.apache.flink.runtime.rest.messages.ResponseBody;
-
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 import javax.annotation.Nullable;
-
 import java.util.List;
 
 /**
@@ -35,32 +32,32 @@ import java.util.List;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class ResultFetchResponseBody implements ResponseBody {
 
-	private static final String FIELD_NAME_RESULTS = "results";
-	private static final String FIELD_NAME_NEXT_RESULT_URI = "next_result_uri";
+    private static final String FIELD_NAME_RESULTS = "results";
+    private static final String FIELD_NAME_NEXT_RESULT_URI = "next_result_uri";
 
-	@JsonProperty(FIELD_NAME_RESULTS)
-	@Nullable
-	private List<ResultSet> results;
+    @JsonProperty(FIELD_NAME_RESULTS)
+    @Nullable
+    private List<ResultSet> results;
 
-	@JsonProperty(FIELD_NAME_NEXT_RESULT_URI)
-	@Nullable
-	private String nextResultUri;
+    @JsonProperty(FIELD_NAME_NEXT_RESULT_URI)
+    @Nullable
+    private String nextResultUri;
 
-	public ResultFetchResponseBody(
-		@Nullable @JsonProperty(FIELD_NAME_RESULTS) List<ResultSet> results,
-		@Nullable @JsonProperty(FIELD_NAME_NEXT_RESULT_URI) String nextResultUri) {
-		this.results = results;
-		this.nextResultUri = nextResultUri;
-	}
+    public ResultFetchResponseBody(
+            @Nullable @JsonProperty(FIELD_NAME_RESULTS) List<ResultSet> results,
+            @Nullable @JsonProperty(FIELD_NAME_NEXT_RESULT_URI) String nextResultUri) {
+        this.results = results;
+        this.nextResultUri = nextResultUri;
+    }
 
-	@Nullable
-	public List<ResultSet> getResults() {
-		return results;
-	}
+    @Nullable
+    public List<ResultSet> getResults() {
+        return results;
+    }
 
-	@Nullable
-	public String getNextResultUri() {
-		return nextResultUri;
-	}
+    @Nullable
+    public String getNextResultUri() {
+        return nextResultUri;
+    }
 
 }

@@ -21,62 +21,70 @@ package com.ververica.flink.table.gateway.rest.handler;
 import com.ververica.flink.table.gateway.rest.message.SessionCloseResponseBody;
 import com.ververica.flink.table.gateway.rest.message.SessionIdPathParameter;
 import com.ververica.flink.table.gateway.rest.message.SessionMessageParameters;
-
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
-
+import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
+import org.apache.flink.runtime.rest.versioning.RuntimeRestAPIVersion;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
+
+import java.util.Collection;
+import java.util.Collections;
 
 /**
  * Message headers for closing a session.
  */
 public class SessionCloseHeaders
-	implements MessageHeaders<EmptyRequestBody, SessionCloseResponseBody, SessionMessageParameters> {
+        implements MessageHeaders<EmptyRequestBody, SessionCloseResponseBody, SessionMessageParameters> {
 
-	private static final SessionCloseHeaders INSTANCE = new SessionCloseHeaders();
+    private static final SessionCloseHeaders INSTANCE = new SessionCloseHeaders();
 
-	public static final String URL = "/sessions/:" + SessionIdPathParameter.KEY;
+    public static final String URL = "/sessions/:" + SessionIdPathParameter.KEY;
 
-	private SessionCloseHeaders() {
-	}
+    private SessionCloseHeaders() {
+    }
 
-	@Override
-	public Class<SessionCloseResponseBody> getResponseClass() {
-		return SessionCloseResponseBody.class;
-	}
+    @Override
+    public Class<SessionCloseResponseBody> getResponseClass() {
+        return SessionCloseResponseBody.class;
+    }
 
-	@Override
-	public HttpResponseStatus getResponseStatusCode() {
-		return HttpResponseStatus.OK;
-	}
+    @Override
+    public HttpResponseStatus getResponseStatusCode() {
+        return HttpResponseStatus.OK;
+    }
 
-	@Override
-	public String getDescription() {
-		return "Closes the specific session.";
-	}
+    @Override
+    public String getDescription() {
+        return "Closes the specific session.";
+    }
 
-	@Override
-	public Class<EmptyRequestBody> getRequestClass() {
-		return EmptyRequestBody.class;
-	}
+    @Override
+    public Class<EmptyRequestBody> getRequestClass() {
+        return EmptyRequestBody.class;
+    }
 
-	@Override
-	public SessionMessageParameters getUnresolvedMessageParameters() {
-		return new SessionMessageParameters();
-	}
+    @Override
+    public SessionMessageParameters getUnresolvedMessageParameters() {
+        return new SessionMessageParameters();
+    }
 
-	@Override
-	public HttpMethodWrapper getHttpMethod() {
-		return HttpMethodWrapper.DELETE;
-	}
+    @Override
+    public HttpMethodWrapper getHttpMethod() {
+        return HttpMethodWrapper.DELETE;
+    }
 
-	@Override
-	public String getTargetRestEndpointURL() {
-		return URL;
-	}
+    @Override
+    public String getTargetRestEndpointURL() {
+        return URL;
+    }
 
-	public static SessionCloseHeaders getInstance() {
-		return INSTANCE;
-	}
+    @Override
+    public Collection<? extends RestAPIVersion<?>> getSupportedAPIVersions() {
+        return Collections.singleton(RuntimeRestAPIVersion.V1);
+    }
+
+    public static SessionCloseHeaders getInstance() {
+        return INSTANCE;
+    }
 }

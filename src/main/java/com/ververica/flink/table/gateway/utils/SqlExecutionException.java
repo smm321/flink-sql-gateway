@@ -23,13 +23,13 @@ package com.ververica.flink.table.gateway.utils;
  */
 public class SqlExecutionException extends RuntimeException {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	public SqlExecutionException(String message) {
-		super(message);
-	}
+    public SqlExecutionException(String message) {
+        super(message);
+    }
 
-	public SqlExecutionException(String message, Throwable e) {
-		super(message, e);
-	}
+    public SqlExecutionException(String message, Throwable e) {
+        super(message, e);
+    }
 }

@@ -22,64 +22,72 @@ import com.ververica.flink.table.gateway.rest.message.JobIdPathParameter;
 import com.ververica.flink.table.gateway.rest.message.JobStatusResponseBody;
 import com.ververica.flink.table.gateway.rest.message.SessionIdPathParameter;
 import com.ververica.flink.table.gateway.rest.message.SessionJobMessageParameters;
-
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
-
+import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
+import org.apache.flink.runtime.rest.versioning.RuntimeRestAPIVersion;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
+
+import java.util.Collection;
+import java.util.Collections;
 
 /**
  * Messages headers for getting job status.
  */
 public class JobStatusHeaders
-	implements MessageHeaders<EmptyRequestBody, JobStatusResponseBody, SessionJobMessageParameters> {
+        implements MessageHeaders<EmptyRequestBody, JobStatusResponseBody, SessionJobMessageParameters> {
 
-	private static final JobStatusHeaders INSTANCE = new JobStatusHeaders();
+    private static final JobStatusHeaders INSTANCE = new JobStatusHeaders();
 
-	public static final String URL = "/sessions/:" + SessionIdPathParameter.KEY +
-		"/jobs/:" + JobIdPathParameter.KEY + "/status";
+    public static final String URL = "/sessions/:" + SessionIdPathParameter.KEY +
+            "/jobs/:" + JobIdPathParameter.KEY + "/status";
 
-	private JobStatusHeaders() {
-	}
+    private JobStatusHeaders() {
+    }
 
-	@Override
-	public Class<JobStatusResponseBody> getResponseClass() {
-		return JobStatusResponseBody.class;
-	}
+    @Override
+    public Class<JobStatusResponseBody> getResponseClass() {
+        return JobStatusResponseBody.class;
+    }
 
-	@Override
-	public HttpResponseStatus getResponseStatusCode() {
-		return HttpResponseStatus.OK;
-	}
+    @Override
+    public HttpResponseStatus getResponseStatusCode() {
+        return HttpResponseStatus.OK;
+    }
 
-	@Override
-	public String getDescription() {
-		return "get job status.";
-	}
+    @Override
+    public String getDescription() {
+        return "get job status.";
+    }
 
-	@Override
-	public Class<EmptyRequestBody> getRequestClass() {
-		return EmptyRequestBody.class;
-	}
+    @Override
+    public Class<EmptyRequestBody> getRequestClass() {
+        return EmptyRequestBody.class;
+    }
 
-	@Override
-	public SessionJobMessageParameters getUnresolvedMessageParameters() {
-		return new SessionJobMessageParameters();
-	}
+    @Override
+    public SessionJobMessageParameters getUnresolvedMessageParameters() {
+        return new SessionJobMessageParameters();
+    }
 
-	@Override
-	public HttpMethodWrapper getHttpMethod() {
-		return HttpMethodWrapper.GET;
-	}
+    @Override
+    public HttpMethodWrapper getHttpMethod() {
+        return HttpMethodWrapper.GET;
+    }
 
-	@Override
-	public String getTargetRestEndpointURL() {
-		return URL;
-	}
+    @Override
+    public String getTargetRestEndpointURL() {
+        return URL;
+    }
 
-	public static JobStatusHeaders getInstance() {
-		return INSTANCE;
-	}
+    @Override
+    public Collection<? extends RestAPIVersion<?>> getSupportedAPIVersions() {
+        return Collections.singleton(RuntimeRestAPIVersion.V1);
+    }
+
+    public static JobStatusHeaders getInstance() {
+        return INSTANCE;
+    }
 
 }

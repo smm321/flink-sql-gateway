@@ -26,7 +26,6 @@ import com.ververica.flink.table.gateway.utils.SqlGatewayException;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
-import org.apache.flink.runtime.rest.RestServerEndpointConfiguration;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.util.JarUtils;
 
@@ -72,9 +71,7 @@ public class SqlGateway {
 		final DefaultContext defaultContext = new DefaultContext(defaultEnv, dependencies);
 		sessionManager = new SessionManager(defaultContext);
 
-		endpoint = new SqlGatewayEndpoint(
-			RestServerEndpointConfiguration.fromConfiguration(configuration),
-			sessionManager);
+		endpoint = new SqlGatewayEndpoint(configuration, sessionManager);
 		endpoint.start();
 		System.out.println("Rest endpoint started.");
 
@@ -151,9 +148,9 @@ public class SqlGateway {
 
 	private static void checkFlinkVersion() {
 		String flinkVersion = EnvironmentInformation.getVersion();
-		if (!flinkVersion.startsWith("1.13")) {
-			LOG.error("Only Flink-1.13 is supported now!");
-			throw new SqlGatewayException("Only Flink-1.13 is supported now!");
+		if (!flinkVersion.startsWith("1.17")) {
+			LOG.error("Only Flink-1.17 is supported now!");
+			throw new SqlGatewayException("Only Flink-1.17 is supported now!");
 		}
 	}
 

@@ -28,18 +28,15 @@ import com.ververica.flink.table.gateway.rest.result.ResultSet;
 import com.ververica.flink.table.gateway.rest.session.Session;
 import com.ververica.flink.table.gateway.rest.session.SessionManager;
 import com.ververica.flink.table.gateway.utils.SqlGatewayException;
-
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
-
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 import javax.annotation.Nonnull;
-
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -50,52 +47,52 @@ import java.util.concurrent.CompletableFuture;
  * Request handler for fetching job result.
  */
 public class ResultFetchHandler
-	extends AbstractRestHandler<ResultFetchRequestBody, ResultFetchResponseBody, ResultFetchMessageParameters> {
+        extends AbstractRestHandler<ResultFetchRequestBody, ResultFetchResponseBody, ResultFetchMessageParameters> {
 
-	private final SessionManager sessionManager;
+    private final SessionManager sessionManager;
 
-	public ResultFetchHandler(
-		SessionManager sessionManager,
-		Time timeout,
-		Map<String, String> responseHeaders,
-		MessageHeaders<ResultFetchRequestBody, ResultFetchResponseBody, ResultFetchMessageParameters> messageHeaders) {
+    public ResultFetchHandler(
+            SessionManager sessionManager,
+            Time timeout,
+            Map<String, String> responseHeaders,
+            MessageHeaders<ResultFetchRequestBody, ResultFetchResponseBody, ResultFetchMessageParameters> messageHeaders) {
 
-		super(timeout, responseHeaders, messageHeaders);
-		this.sessionManager = sessionManager;
-	}
+        super(timeout, responseHeaders, messageHeaders);
+        this.sessionManager = sessionManager;
+    }
 
-	@Override
-	protected CompletableFuture<ResultFetchResponseBody> handleRequest(
-		@Nonnull HandlerRequest<ResultFetchRequestBody, ResultFetchMessageParameters> request)
-		throws RestHandlerException {
+    @Override
+    protected CompletableFuture<ResultFetchResponseBody> handleRequest(
+            @Nonnull HandlerRequest<ResultFetchRequestBody> request)
+            throws RestHandlerException {
 
-		String sessionId = request.getPathParameter(SessionIdPathParameter.class);
-		JobID jobId = request.getPathParameter(JobIdPathParameter.class);
-		Long resultToken = request.getPathParameter(ResultTokenPathParameter.class);
-		Integer maxFetchSize = request.getRequestBody().getMaxFetchSize();
+        String sessionId = request.getPathParameter(SessionIdPathParameter.class);
+        JobID jobId = request.getPathParameter(JobIdPathParameter.class);
+        Long resultToken = request.getPathParameter(ResultTokenPathParameter.class);
+        Integer maxFetchSize = request.getRequestBody().getMaxFetchSize();
 
-		if (maxFetchSize != null && maxFetchSize <= 0) {
-			throw new RestHandlerException("Max fetch size must be positive.", HttpResponseStatus.BAD_REQUEST);
-		}
-		maxFetchSize = maxFetchSize == null ? 0 : maxFetchSize;
+        if (maxFetchSize != null && maxFetchSize <= 0) {
+            throw new RestHandlerException("Max fetch size must be positive.", HttpResponseStatus.BAD_REQUEST);
+        }
+        maxFetchSize = maxFetchSize == null ? 0 : maxFetchSize;
 
-		try {
-			Session session = sessionManager.getSession(sessionId);
-			Optional<ResultSet> resultSet = session.getJobResult(jobId, resultToken, maxFetchSize);
-			List<ResultSet> results = null;
-			if (resultSet.isPresent()) {
-				results = Collections.singletonList(resultSet.get());
-			}
+        try {
+            Session session = sessionManager.getSession(sessionId);
+            Optional<ResultSet> resultSet = session.getJobResult(jobId, resultToken, maxFetchSize);
+            List<ResultSet> results = null;
+            if (resultSet.isPresent()) {
+                results = Collections.singletonList(resultSet.get());
+            }
 
-			RestAPIVersion version = getCurrentVersion();
-			String nextResultUri = null;
-			if (resultSet.isPresent()) {
-				nextResultUri = ResultFetchHeaders.buildNextResultUri(version, sessionId, jobId, resultToken + 1);
-			}
+            RestAPIVersion version = getCurrentVersion();
+            String nextResultUri = null;
+            if (resultSet.isPresent()) {
+                nextResultUri = ResultFetchHeaders.buildNextResultUri(version, sessionId, jobId, resultToken + 1);
+            }
 
-			return CompletableFuture.completedFuture(new ResultFetchResponseBody(results, nextResultUri));
-		} catch (SqlGatewayException e) {
-			throw new RestHandlerException(e.getMessage(), HttpResponseStatus.INTERNAL_SERVER_ERROR, e);
-		}
-	}
+            return CompletableFuture.completedFuture(new ResultFetchResponseBody(results, nextResultUri));
+        } catch (SqlGatewayException e) {
+            throw new RestHandlerException(e.getMessage(), HttpResponseStatus.INTERNAL_SERVER_ERROR, e);
+        }
+    }
 }

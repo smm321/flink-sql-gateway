@@ -18,35 +18,37 @@
 
 package com.ververica.flink.table.gateway.config.entries;
 
-import org.apache.flink.table.descriptors.DescriptorProperties;
+import com.ververica.flink.table.gateway.utils.ConfigurationValidater;
+import org.apache.flink.configuration.ConfigOptions;
+import org.apache.flink.configuration.Configuration;
 
 /**
  * Configuration of a table view.
  */
 public class ViewEntry extends TableEntry {
 
-	private static final String TABLES_QUERY = "query";
+    private static final String TABLES_QUERY = "query";
 
-	private final String query;
+    private final String query;
 
-	ViewEntry(String name, DescriptorProperties properties) {
-		super(name, properties);
+    ViewEntry(String name, Configuration properties) {
+        super(name, properties);
+        query = properties.getString(ConfigOptions.key(TABLES_QUERY).stringType().noDefaultValue());
+    }
 
-		query = properties.getString(TABLES_QUERY);
-	}
+    public String getQuery() {
+        return query;
+    }
 
-	public String getQuery() {
-		return query;
-	}
+    @Override
+    protected void validate(Configuration properties) {
+        ConfigurationValidater validate = ConfigurationValidater.builder().configuration(properties).build();
+        validate.validateString(TABLES_QUERY, false, 1);
+    }
 
-	@Override
-	protected void validate(DescriptorProperties properties) {
-		properties.validateString(TABLES_QUERY, false, 1);
-	}
-
-	public static ViewEntry create(String name, String query) {
-		final DescriptorProperties properties = new DescriptorProperties(true);
-		properties.putString(TABLES_QUERY, query);
-		return new ViewEntry(name, properties);
-	}
+    public static ViewEntry create(String name, String query) {
+        final Configuration properties = new Configuration();
+        properties.setString(TABLES_QUERY, query);
+        return new ViewEntry(name, properties);
+    }
 }

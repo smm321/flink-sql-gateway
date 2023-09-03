@@ -21,6 +21,7 @@ package com.ververica.flink.table.gateway.operation;
 import com.ververica.flink.table.gateway.context.SessionContext;
 import com.ververica.flink.table.gateway.operation.SqlCommandParser.SqlCommandCall;
 import com.ververica.flink.table.gateway.utils.SqlGatewayException;
+import org.apache.commons.lang3.StringUtils;
 
 /**
  * The factory to create {@link Operation} based on {@link SqlCommandCall}.
@@ -32,7 +33,7 @@ public class OperationFactory {
 		Operation operation;
 		switch (call.command) {
 			case SELECT:
-				operation = new SelectOperation(context, call.operands[0]);
+				operation = new SelectOperation(context, call.operands[0], call.operands[1]);
 				break;
 			case CREATE_VIEW:
 				operation = new CreateViewOperation(context, call.operands[0], call.operands[1]);
@@ -46,6 +47,9 @@ public class OperationFactory {
 			case CREATE_DATABASE:
 			case DROP_DATABASE:
 			case ALTER_DATABASE:
+			case CREATE_FUNCTION:
+			case ALTER_FUNCTION:
+			case DROP_FUNCTION:
 				operation = new DDLOperation(context, call.operands[0], call.command);
 				break;
 			case SET:
@@ -58,7 +62,7 @@ public class OperationFactory {
 				}
 				break;
 			case RESET:
-				if (call.operands.length > 0) {
+				if (call.operands.length > 0 && StringUtils.isNotEmpty(call.operands[0])) {
 					throw new SqlGatewayException("Only RESET ALL is supported now");
 				}
 				operation = new ResetOperation(context);
@@ -71,7 +75,7 @@ public class OperationFactory {
 				break;
 			case INSERT_INTO:
 			case INSERT_OVERWRITE:
-				operation = new InsertOperation(context, call.operands[0], call.operands[1]);
+				operation = new InsertOperation(context, call.operands[0], call.operands[1], call.operands[2]);
 				break;
 			case SHOW_MODULES:
 				operation = new ShowModulesOperation(context);
@@ -102,6 +106,18 @@ public class OperationFactory {
 				break;
 			case EXPLAIN:
 				operation = new ExplainOperation(context, call.operands[0]);
+				break;
+			case SHOW_CREATE_TABLE:
+				operation = new ShowCreateTableOperation(context, call.operands[0]);
+				break;
+			case STATEMENT_SET:
+				operation = new StatementSetOperation(context, call.operands[0], call.operands[1]);
+				break;
+			case VALIDATE:
+				operation = new ValidateStatementSetOperation(context, call.operands[0], call.operands[1]);
+				break;
+			case LINEAGE:
+				operation = new ParseLineageOperation(context, call.operands[0], call.operands[1]);
 				break;
 			default:
 				throw new SqlGatewayException("Unsupported command call " + call + ". This is a bug.");

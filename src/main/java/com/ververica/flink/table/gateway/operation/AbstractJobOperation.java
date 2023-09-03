@@ -25,6 +25,7 @@ import com.ververica.flink.table.gateway.rest.result.ResultKind;
 import com.ververica.flink.table.gateway.rest.result.ResultSet;
 import com.ververica.flink.table.gateway.utils.SqlGatewayException;
 
+import org.apache.commons.collections.CollectionUtils;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -144,7 +145,7 @@ public abstract class AbstractJobOperation implements JobOperation {
 				// buffered results have been totally consumed,
 				// so try to fetch new results
 				Optional<Tuple2<List<Row>, List<Boolean>>> newResults = fetchNewJobResults();
-				if (newResults.isPresent()) {
+				if (newResults.isPresent() && CollectionUtils.isNotEmpty(newResults.get().f1)) {
 					bufferedResults.addAll(newResults.get().f0);
 					if (newResults.get().f1 != null) {
 						if (bufferedChangeFlags == null) {
@@ -175,7 +176,7 @@ public abstract class AbstractJobOperation implements JobOperation {
 			}
 		} else if (token == currentToken - 1 && token >= 0) {
 			if (LOG.isDebugEnabled()) {
-				LOG.debug("Session: {}. Fetching previous result for job: {}, token: {}, maxFetchSize: ",
+				LOG.debug("Session: {}. Fetching previous result for job: {}, token: {}, maxFetchSize: {} ",
 					sessionId, jobId, token, maxFetchSize);
 			}
 			if (previousMaxFetchSize != maxFetchSize) {

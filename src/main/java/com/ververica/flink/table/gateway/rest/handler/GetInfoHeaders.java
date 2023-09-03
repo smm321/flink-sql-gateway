@@ -19,63 +19,71 @@
 package com.ververica.flink.table.gateway.rest.handler;
 
 import com.ververica.flink.table.gateway.rest.message.GetInfoResponseBody;
-
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
-
+import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
+import org.apache.flink.runtime.rest.versioning.RuntimeRestAPIVersion;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
+
+import java.util.Collection;
+import java.util.Collections;
 
 /**
  * Message headers for getting info.
  */
 public class GetInfoHeaders
-	implements MessageHeaders<EmptyRequestBody, GetInfoResponseBody, EmptyMessageParameters> {
+        implements MessageHeaders<EmptyRequestBody, GetInfoResponseBody, EmptyMessageParameters> {
 
-	private static final GetInfoHeaders INSTANCE = new GetInfoHeaders();
+    private static final GetInfoHeaders INSTANCE = new GetInfoHeaders();
 
-	public static final String URL = "/info";
+    public static final String URL = "/info";
 
-	private GetInfoHeaders() {
-	}
+    private GetInfoHeaders() {
+    }
 
-	@Override
-	public Class<GetInfoResponseBody> getResponseClass() {
-		return GetInfoResponseBody.class;
-	}
+    @Override
+    public Class<GetInfoResponseBody> getResponseClass() {
+        return GetInfoResponseBody.class;
+    }
 
-	@Override
-	public HttpResponseStatus getResponseStatusCode() {
-		return HttpResponseStatus.OK;
-	}
+    @Override
+    public HttpResponseStatus getResponseStatusCode() {
+        return HttpResponseStatus.OK;
+    }
 
-	@Override
-	public String getDescription() {
-		return "Get meta data for this cluster";
-	}
+    @Override
+    public String getDescription() {
+        return "Get meta data for this cluster";
+    }
 
-	@Override
-	public Class<EmptyRequestBody> getRequestClass() {
-		return EmptyRequestBody.class;
-	}
+    @Override
+    public Class<EmptyRequestBody> getRequestClass() {
+        return EmptyRequestBody.class;
+    }
 
-	@Override
-	public EmptyMessageParameters getUnresolvedMessageParameters() {
-		return EmptyMessageParameters.getInstance();
-	}
+    @Override
+    public EmptyMessageParameters getUnresolvedMessageParameters() {
+        return EmptyMessageParameters.getInstance();
+    }
 
-	@Override
-	public HttpMethodWrapper getHttpMethod() {
-		return HttpMethodWrapper.GET;
-	}
+    @Override
+    public HttpMethodWrapper getHttpMethod() {
+        return HttpMethodWrapper.GET;
+    }
 
-	@Override
-	public String getTargetRestEndpointURL() {
-		return URL;
-	}
+    @Override
+    public String getTargetRestEndpointURL() {
+        return URL;
+    }
 
-	public static GetInfoHeaders getInstance() {
-		return INSTANCE;
-	}
+    @Override
+    public Collection<? extends RestAPIVersion<?>> getSupportedAPIVersions() {
+        return Collections.singleton(RuntimeRestAPIVersion.V1);
+    }
+
+    public static GetInfoHeaders getInstance() {
+        return INSTANCE;
+    }
 }

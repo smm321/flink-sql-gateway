@@ -19,7 +19,6 @@
 package com.ververica.flink.table.gateway.rest.message;
 
 import org.apache.flink.runtime.rest.messages.RequestBody;
-
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -31,19 +30,19 @@ import javax.annotation.Nullable;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class ResultFetchRequestBody implements RequestBody {
 
-	private static final String FIELD_NAME_MAX_FETCH_SIZE = "max_fetch_size";
+    private static final String FIELD_NAME_MAX_FETCH_SIZE = "max_fetch_size";
 
-	@JsonProperty(FIELD_NAME_MAX_FETCH_SIZE)
-	@Nullable
-	private final Integer maxFetchSize;
+    @JsonProperty(FIELD_NAME_MAX_FETCH_SIZE)
+    @Nullable
+    private final Integer maxFetchSize;
 
-	public ResultFetchRequestBody(
-		@Nullable @JsonProperty(FIELD_NAME_MAX_FETCH_SIZE) Integer maxFetchSize) {
-		this.maxFetchSize = maxFetchSize;
-	}
+    public ResultFetchRequestBody(
+            @Nullable @JsonProperty(FIELD_NAME_MAX_FETCH_SIZE) Integer maxFetchSize) {
+        this.maxFetchSize = maxFetchSize;
+    }
 
-	@Nullable
-	public Integer getMaxFetchSize() {
-		return maxFetchSize;
-	}
+    @Nullable
+    public Integer getMaxFetchSize() {
+        return maxFetchSize;
+    }
 }
