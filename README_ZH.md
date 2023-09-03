@@ -3,31 +3,35 @@
 基于社区版分支修改的flink-sql-gateway，可适用于flink on yarn + hive metastore的环境运行Flink SQL.
 
 ##当前支持的版本
+
 flink-1.17.1
 
-##新增的feature
 
-###新增语法
+## 新增的feature
+
+### 新增的语法
+
 - show create table [table_name]
 - lineage [sql]
 - validate [sql]
 - 支持执行statement set
 
-###新增接口
-- ####YarnJobSubmitHandler
-  ####request rul
+
+### 新增的接口
+- #### YarnJobSubmitHandler
+  #### request rul
   ```
   localhost:8083/v1/job/submit
   ```
-  ####request body
+  #### request body
   
   ```json
     {
         "cmd": "run-application -t yarn-application -Dyarn.application.queue=queue -Dyarn.application.name=job_1  --class main.class.path --parallelism 1 -Djobmanager.memory.process.size=1G -Dtaskmanager.memory.process.size=1G -Dtaskmanager.numberOfTaskSlots=1 /jarPath ",
         "dml": "insert into a select col from b"
     }
-  ```
-  ####response body
+  ```  
+  #### response body
   ```json
     {
         "errMsg": "",
@@ -35,8 +39,9 @@ flink-1.17.1
     }
   ```
   
-- ####YarnJobInfoHandler
-  #####request rul
+
+- #### YarnJobInfoHandler
+  ##### request rul
   ```
   curl -X GET localhost:8083/v1/job/info
   ```
@@ -79,16 +84,16 @@ flink-1.17.1
     ]
   }
 
-- ####YarnJobStopHandler
-  ####request url
+  
+- #### YarnJobStopHandler
+  #### request url
   ```
   curl -X POST localhost:8083/v1/job/stop
   ```
-  ####request body
+  #### request body
   ```json
     {"job_name": "job_1"}
   ```
-
   #### response body
   ```json
     {
@@ -105,12 +110,12 @@ flink-1.17.1
   ```
 
 
-- ####YarnSessionHandler
-    ####request url
+- #### YarnSessionHandler
+    #### request url
     ```
        curl -X POST localhost:8083/v1/job/session
     ```
-    ####request body
+    #### request body
     ```json
     {
       "cmd": "-s 4 -jm 4096 -tm 4096 -nm flink-session-cluster -d -Dyarn.application.queue=queue",
@@ -125,12 +130,12 @@ flink-1.17.1
     }
     ```
 
-- ####SavepointHandler
-  ####request url
+- #### SavepointHandler
+  #### request url
     ```
        curl -X POST localhost:8083/v1/job/savepoint
     ```
-  ####request body
+  #### request body
     ```json
     {
       "job_name": "job_1"
@@ -151,12 +156,12 @@ flink-1.17.1
     }
     ```
 
-- ####JarUploadHandler
-  ####request url
+- #### JarUploadHandler
+  #### request url
     ```
     curl -X POST localhost:8083/v1/jars/upload
     ```
-  ####request body (form-data)
+  #### request body (form-data)
     
     ```
     UPLOADED_FILES /jar_local_url
