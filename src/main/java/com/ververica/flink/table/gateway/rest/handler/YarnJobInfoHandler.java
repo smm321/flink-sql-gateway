@@ -45,6 +45,8 @@ public class YarnJobInfoHandler extends YarnJobAbstractHandler<EmptyRequestBody,
                 result.setJobName(report.getName());
                 result.setTrackingUrl(report.getTrackingUrl());
                 result.setFlinkJob(FlinkUtil.getJobInofs(report.getTrackingUrl() + "/jobs/overview"));
+                result.setYarnState(report.getYarnApplicationState().toString());
+                result.setYarnStartTime(report.getStartTime());
                 infos.add(result);
             });
         } catch (Exception e) {

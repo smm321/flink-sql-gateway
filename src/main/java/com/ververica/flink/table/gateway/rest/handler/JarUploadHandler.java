@@ -34,8 +34,11 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.nio.file.attribute.PosixFilePermission;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 
@@ -43,8 +46,6 @@ import java.util.concurrent.CompletionException;
 /** Handles .jar file uploads. */
 public class JarUploadHandler
         extends AbstractRestHandler<JarUploadRequestBody, JarUploadResponseBody, EmptyMessageParameters> {
-
-    private final String basePath = System.getProperty("jarPath", "/home/hadoop/flink_jar/");
 
     public JarUploadHandler(
             final Time timeout,
@@ -60,7 +61,7 @@ public class JarUploadHandler
             @Nonnull final HandlerRequest<JarUploadRequestBody> request)
             throws RestHandlerException {
         Collection<File> uploadedFiles = request.getUploadedFiles();
-        String jobName = request.getRequestBody().getJobName();
+        String jarDir = request.getRequestBody().getJarDir();
         if (uploadedFiles.size() != 1) {
             throw new RestHandlerException(
                     "Exactly 1 file must be sent, received " + uploadedFiles.size() + '.',
@@ -75,8 +76,13 @@ public class JarUploadHandler
                                         "Only Jar files are allowed.",
                                         HttpResponseStatus.BAD_REQUEST));
                     } else {
-                        final Path destination =
-                                fileUpload.resolve(basePath + jobName + File.separator + fileUpload.getFileName());
+                        final Path destination;
+                        if (jarDir.endsWith(File.separator)) {
+                            destination = fileUpload.resolve(jarDir + fileUpload.getFileName());
+                        } else {
+                            destination = fileUpload.resolve(jarDir + File.separator + fileUpload.getFileName());
+                        }
+
                         try {
                             if (Files.exists(destination)) {
                                 Files.move(destination, destination.resolveSibling(fileUpload.getFileName()
@@ -86,6 +92,11 @@ public class JarUploadHandler
                                 Files.createDirectories(destination);
                             }
                             Files.copy(fileUpload, destination, StandardCopyOption.REPLACE_EXISTING);
+                            Set<PosixFilePermission> perms = new HashSet<>();
+                            perms.add(PosixFilePermission.OWNER_READ);
+                            perms.add(PosixFilePermission.OWNER_WRITE);
+                            perms.add(PosixFilePermission.GROUP_EXECUTE);
+                            Files.setPosixFilePermissions(destination, perms);
                         } catch (IOException e) {
                             throw new CompletionException(
                                     new RestHandlerException(

@@ -41,7 +41,7 @@ public class ShowCreateTableOperation implements NonJobOperation{
 
     public ShowCreateTableOperation(SessionContext context, String tableName) {
         this.context = context.getExecutionContext();
-        this.tableName = tableName;
+        this.tableName = tableName.trim();
     }
 
     @Override
@@ -90,8 +90,13 @@ public class ShowCreateTableOperation implements NonJobOperation{
             //----------------------------------------------------------------------------------------------------------
             // Step.4 get table comment with String format
             //----------------------------------------------------------------------------------------------------------
-            CatalogBaseTable catalogBaseTable =
-                    catalog.getTable(new ObjectPath(tableEnv.getCurrentDatabase(), tableName));
+            ObjectPath objectPath;
+            if (tableName.contains(".")) {
+                objectPath = ObjectPath.fromString(tableName);
+            } else {
+                objectPath = new ObjectPath(tableEnv.getCurrentDatabase(), tableName);
+            }
+            CatalogBaseTable catalogBaseTable = catalog.getTable(objectPath);
             String comment = catalogBaseTable.getComment();
             //----------------------------------------------------------------------------------------------------------
             // Step.5 get partition column
@@ -99,7 +104,7 @@ public class ShowCreateTableOperation implements NonJobOperation{
             List<String> partitionList = new ArrayList<>();
             if (catalog instanceof HiveCatalog){
                 HiveCatalog hiveCatalog = (HiveCatalog)catalog;
-                hiveCatalog.getHiveTable(new ObjectPath(tableEnv.getCurrentDatabase(), tableName)).getParameters()
+                hiveCatalog.getHiveTable(objectPath).getParameters()
                         .forEach((k, v) -> {
                             if (k.startsWith("flink.partition.keys")){
                                 partitionList.add(v);
@@ -126,9 +131,16 @@ public class ShowCreateTableOperation implements NonJobOperation{
 
     private String generateCreateTableDDL(List<Column> fieldInfo, Map<String, WatermarkSpec> watermark,
         String primaryKey, String comment, List<String> partitionList, Map<String, String> with, String tableName){
-        StringBuffer stringBuffer = new StringBuffer("CREATE TABLE ")
-                .append(EncodingUtils.escapeIdentifier(tableName.trim()))
-                .append("(");
+        StringBuffer stringBuffer = new StringBuffer("CREATE TABLE ");
+        if (tableName.contains(".")) {
+            stringBuffer.append(EncodingUtils.escapeIdentifier(tableName.split("\\.")[0]))
+                    .append(".")
+                    .append(EncodingUtils.escapeIdentifier(tableName.split("\\.")[1]));
+        } else {
+            stringBuffer.append(EncodingUtils.escapeIdentifier(tableName.trim()));
+        }
+
+        stringBuffer.append("(");
         fieldInfo.forEach((v) -> {
             if (v instanceof Column.PhysicalColumn){
                 Column.PhysicalColumn col = (Column.PhysicalColumn)v;

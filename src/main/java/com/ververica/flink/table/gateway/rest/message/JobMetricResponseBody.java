@@ -16,17 +16,29 @@
  * limitations under the License.
  */
 
-package com.ververica.flink.table.gateway.rest.result;
+package com.ververica.flink.table.gateway.rest.message;
+
+import org.apache.flink.runtime.rest.messages.ResponseBody;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
- * ResultKind defines the types of the result.
+ * {@link ResponseBody} for getting job metric.
  */
-public enum ResultKind {
-    // for DDL, DCL and statements with a simple "OK"
-    SUCCESS,
+@JsonInclude(JsonInclude.Include.NON_NULL)
+public class JobMetricResponseBody implements ResponseBody {
 
-    // rows with important content are available (DML, DQL)
-    SUCCESS_WITH_CONTENT,
+    private static final String RESPONSE = "response";
 
-    EOS
+    @JsonProperty(RESPONSE)
+    private String response;
+
+    public JobMetricResponseBody(@JsonProperty(RESPONSE) String response) {
+        this.response = response;
+    }
+
+    public String getResponse() {
+        return response;
+    }
+
 }

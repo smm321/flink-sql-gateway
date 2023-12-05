@@ -62,4 +62,5 @@ public class ConstantNames {
 
     public static final String DDL = "ddl";
     public static final String DQL = "dql";
+    public static final String UNPARSED_STATEMENT = "unparsed_statement";
 }

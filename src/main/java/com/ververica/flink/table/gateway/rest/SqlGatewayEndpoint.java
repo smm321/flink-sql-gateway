@@ -30,6 +30,8 @@ import com.ververica.flink.table.gateway.rest.handler.JarUploadHandler;
 import com.ververica.flink.table.gateway.rest.handler.JarUploadHeaders;
 import com.ververica.flink.table.gateway.rest.handler.JobCancelHandler;
 import com.ververica.flink.table.gateway.rest.handler.JobCancelHeaders;
+import com.ververica.flink.table.gateway.rest.handler.JobMetricHandler;
+import com.ververica.flink.table.gateway.rest.handler.JobMetricHeaders;
 import com.ververica.flink.table.gateway.rest.handler.JobStatusHandler;
 import com.ververica.flink.table.gateway.rest.handler.JobStatusHeaders;
 import com.ververica.flink.table.gateway.rest.handler.ResultFetchHandler;
@@ -141,6 +143,9 @@ public class SqlGatewayEndpoint extends RestServerEndpoint {
         final JarUploadHandler jarUploadHandler = new JarUploadHandler(timeout, responseHeaders,
                 JarUploadHeaders.getInstance());
 
+        final JobMetricHandler jobMetricHandler = new JobMetricHandler(timeout,
+                responseHeaders, JobMetricHeaders.getInstance());
+
         ArrayList<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers = new ArrayList<>(30);
         handlers.add(Tuple2.of(SessionCreateHeaders.getInstance(), sessionCreateHandler));
         handlers.add(Tuple2.of(SessionCloseHeaders.getInstance(), sessionCloseHandler));
@@ -160,6 +165,7 @@ public class SqlGatewayEndpoint extends RestServerEndpoint {
         handlers.add(Tuple2.of(HdfsFileDownloadHeaders.getInstance(), hdfsFileDownloadHandler));
         handlers.add(Tuple2.of(HdfsFileUploadHeaders.getInstance(), hdfsFileUploadHandler));
         handlers.add(Tuple2.of(JarUploadHeaders.getInstance(), jarUploadHandler));
+        handlers.add(Tuple2.of(JobMetricHeaders.getInstance(), jobMetricHandler));
         return handlers;
     }
 

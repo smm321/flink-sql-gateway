@@ -62,6 +62,12 @@ public class YarnJobStopHandler extends YarnJobAbstractHandler<YarnJobStopReques
                 try (ClusterClient<ApplicationId> clusterClient = clusterDescriptor.retrieve(applicationId).getClusterClient()) {
                     Collection<JobStatusMessage> jobList = clusterClient.listJobs().get();
                     Iterator it = jobList.stream().iterator();
+
+                    if (!it.hasNext()) {
+                        clusterDescriptor.getYarnClient().killApplication(applicationId);
+                        return CompletableFuture.completedFuture(new YarnJobStopResponseBody(list));
+                    }
+
                     while (it.hasNext()) {
                         JobStatusMessage message = (JobStatusMessage) it.next();
                         JobID jobId = message.getJobId();
@@ -78,8 +84,12 @@ public class YarnJobStopHandler extends YarnJobAbstractHandler<YarnJobStopReques
                             yarnJobStopResult.setSavepointUrl(location);
                         } catch (Exception e) {
                             log.error(String.format("YarnJobStopHandler stop %s error", jobName), e);
-                            clusterClient.cancel(jobId);
-                            yarnJobStopResult.setSavepointUrl("");
+                            try {
+                                clusterClient.cancel(jobId);
+                                clusterDescriptor.getYarnClient().killApplication(applicationId);
+                                yarnJobStopResult.setSavepointUrl("");
+                            } catch (Exception ignored) {
+                            }
                         }
                     }
                 }

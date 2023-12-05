@@ -464,11 +464,6 @@ public class ExecutionContext<ClusterID> {
             //--------------------------------------------------------------------------------------------------------------
             // No need to register the functions if already inherit from the same session.
             registerFunctions();
-            //--------------------------------------------------------------------------------------------------------------
-            // Step.5 Enable dynamic-table-options.
-            //--------------------------------------------------------------------------------------------------------------
-            // todo !!
-            tableEnv.getConfig().getConfiguration().setBoolean("table.dynamic-table-options.enabled", true);
         } else {
             // Set up session state.
             this.sessionState = sessionState;

@@ -37,6 +37,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -130,7 +131,14 @@ public abstract class AbstractJobOperation implements JobOperation {
 				if (LOG.isDebugEnabled()) {
 					LOG.debug("Session: {}. There is no more result for job: {}", sessionId, jobId);
 				}
-				return Optional.empty();
+				return Optional.of(
+						ResultSet.builder()
+								.resultKind(ResultKind.SUCCESS_WITH_CONTENT)
+								.columns(getColumnInfos())
+								.data(getLinkedListElementsFromBegin(bufferedResults, previousResultSetSize))
+								.changeFlags(getLinkedListElementsFromBegin(bufferedChangeFlags, previousResultSetSize))
+								.build()
+				);
 			}
 
 			// a new token arrives, remove used results
@@ -155,8 +163,15 @@ public abstract class AbstractJobOperation implements JobOperation {
 					}
 					currentToken++;
 				} else {
-					noMoreResults = true;
-					return Optional.empty();
+//					noMoreResults = true;
+					return Optional.of(
+							ResultSet.builder()
+							.resultKind(ResultKind.EOS)
+							.columns(getColumnInfos())
+							.data(Collections.emptyList())
+							.changeFlags(Collections.emptyList())
+							.build()
+					);
 				}
 			} else {
 				// buffered results haven't been totally consumed

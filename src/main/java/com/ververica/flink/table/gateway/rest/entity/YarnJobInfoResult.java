@@ -12,4 +12,6 @@ public class YarnJobInfoResult {
     private String jobName;
     private String trackingUrl;
     private FlinkJob flinkJob;
+    private String yarnState;
+    private long yarnStartTime;
 }

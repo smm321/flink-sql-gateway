@@ -65,10 +65,13 @@ public class YarnJobSubmitHandler extends YarnJobAbstractHandler<YarnJobSubmitRe
             SecurityUtils.getInstalledContext().runSecured(
                     () -> {
                         try {
-                            cliFrontend.parseAndRun(Stream.concat(Arrays.stream(cmd.split(" "))
+                            if (0 != cliFrontend.parseAndRun(Stream.concat(Arrays.stream(cmd.split(" "))
                                             .filter(StringUtils::isNoneEmpty),
-                                    Arrays.stream(arrDml)).toArray(String[]::new));
-                            return 0;
+                                    Arrays.stream(arrDml)).toArray(String[]::new))) {
+                                sb.append("submit job failed");
+                            } else {
+                                return 0;
+                            }
                         } catch (Exception e) {
                             StringWriter sw = new StringWriter();
                             PrintWriter pw = new PrintWriter(sw);

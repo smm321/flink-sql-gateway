@@ -120,7 +120,8 @@ public class OperationFactory {
 				operation = new ParseLineageOperation(context, call.operands[0], call.operands[1]);
 				break;
 			default:
-				throw new SqlGatewayException("Unsupported command call " + call + ". This is a bug.");
+//				throw new SqlGatewayException("Unsupported command call " + call + ". This is a bug.");
+				operation = new DefaultOperation(context, call.operands[0]);
 		}
 
 		return operation;

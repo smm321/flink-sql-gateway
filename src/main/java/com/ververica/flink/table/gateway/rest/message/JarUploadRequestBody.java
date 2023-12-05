@@ -28,17 +28,17 @@ import static java.util.Objects.requireNonNull;
 /** {@link ResponseBody} for {@link com.ververica.flink.table.gateway.rest.handler.JarUploadHandler}. */
 public class JarUploadRequestBody implements RequestBody {
 
-    private static final String JOB_NAME = "job_name";
+    private static final String JAR_DIR = "jar_dir";
 
-    @JsonProperty(JOB_NAME)
-    private final String jobName;
+    @JsonProperty(JAR_DIR)
+    private final String jarDir;
 
     @JsonCreator
-    public JarUploadRequestBody(@JsonProperty(JOB_NAME) final String jobName) {
-        this.jobName = requireNonNull(jobName);
+    public JarUploadRequestBody(@JsonProperty(JAR_DIR) final String jarDir) {
+        this.jarDir = requireNonNull(jarDir);
     }
 
-    public String getJobName() {
-        return jobName;
+    public String getJarDir() {
+        return jarDir;
     }
 }

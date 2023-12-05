@@ -266,17 +266,10 @@ public final class SqlCommandParser {
 //			}
 			operands = new String[0];
 		} else {
-			cmd = null;
-			operands = new String[0];
+			cmd = SqlCommand.DEFAULT;
+			operands = new String[] { stmt };
 		}
-
-		if (cmd == null) {
-			return Optional.empty();
-		} else {
-			// use the origin given statement to make sure
-			// users can find the correct line number when parsing failed
-			return Optional.of(new SqlCommandCall(cmd, operands));
-		}
+		return Optional.of(new SqlCommandCall(cmd, operands));
 	}
 
 	/**
@@ -405,7 +398,9 @@ public final class SqlCommandParser {
 
 		SHOW_CURRENT_DATABASE(
 			"SHOW\\s+CURRENT\\s+DATABASE",
-			NO_OPERANDS);
+			NO_OPERANDS),
+
+		DEFAULT;
 
 		public final Pattern pattern;
 		public final Function<String[], Optional<String[]>> operandConverter;
